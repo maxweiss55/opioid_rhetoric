@@ -1,0 +1,24 @@
+---
+title: "congressionalrecord"
+author: "Max Weiss"
+date: "9/29/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+
+```
+
+
+```{r blue, include=FALSE}
+
+text <- read_csv("congress_test.csv", col_names = FALSE) %>%
+  mutate_if(is.character, replace_na, replace = "") %>%
+  mutate(list = paste(X1, X2, X3, X4, X5)) %>%
+  select(list)
+
+paste(unlist(text), collapse = "")
+
+```

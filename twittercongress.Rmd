@@ -1,0 +1,45 @@
+---
+title: "Twitter_19_testing"
+author: "Max Weiss"
+date: "9/27/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(twitteR)
+library(rtweet)
+library(tidyverse)
+library(tidytext)
+
+twitter_token <- create_token(
+  app = "Congress Replies",
+  consumer_key = 'YOUcbFvdPMiDd0Mvy8ufOZfP5',
+  consumer_secret = 'DcFHabkZK5bLOjviuVujigC99h3TsT58rcN8CkGXcHwuChjtXi',
+  access_token = '1177704262240894976-8rUGyvQW56xtZDdgKXukSCJ3mphDMF',
+  access_secret = '3NhtH73SNkmN8p8tousCKYGNwG4MJvBGnG5KsAcODFYm9')
+
+trump <- search_tweets("from:SenSherrodBrown", n = 18000)
+
+
+```
+
+
+
+
+```{r setup2}
+consumer_key <- 'sF0ttlDEPoHztmY1E3eTsRAf2'
+consumer_secret <- 'aJxlqVrQAjDsaQxLG9NH0ee5w5y7wYuNallG9uJQAwyK4gQZbI'
+twitter_access_key <- '1177704262240894976-gGPyryFuP1tyl0XkvqjLHW4hgvlSVp'
+twitter_access_secret <- 'HYf1MftehiYfSHmldnXa2JYm6WTeazMBkdxRokKzO8Jbh'
+
+
+setup_twitter_oauth(consumer_key, consumer_secret, twitter_access_key, twitter_access_secret)
+
+twitteR::searchTwitter("to:realDonaldTrump+filter:replies", resultType = "recent", n = 10)
+
+searchTwitter("to:realDonaldTrump+filter:replies", resultType = "Recent", n = 10, )
+```
+
+
