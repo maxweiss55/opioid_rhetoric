@@ -23,22 +23,6 @@ paste(unlist(text), collapse = "")
 
 ```
 
-```{r orange}
-
-speech104 <- read.table("hein-daily/speeches_104.txt", sep = "|", fill = TRUE, header = TRUE)
-
-head(speech104)
-
-descr104 <- read.table("hein-daily/descr_104.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-big_104 <- left_join(descr104, speech104, by = "speech_id")
-
-big_104 %>%
-  filter(str_detect(speech, "medicaid")|str_detect(speech, "Medicaid"))
-
- summary(big_104)
-```
 
 ```{r mauve}
 #114
@@ -201,10 +185,115 @@ opioid_105 <- big_105 %>%
 nrow(opioid_105)
 nrow(big_105)
 
+#104
+speech104 <- read.table("hein-daily/speeches_104.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+  mutate(speech_id = as.factor(speech_id))
+
+descr104 <- read.table("hein-daily/descr_104.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+  mutate(speech_id = as.factor(speech_id))
+
+big_104 <- left_join(descr104, speech104, by = "speech_id")
+
+opioid_104 <- big_104 %>%
+  filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
+                                  ignore_case = TRUE)))
+
+nrow(opioid_104)
+nrow(big_104)
+
+#103
+speech103 <- read.table("hein-daily/speeches_103.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+  mutate(speech_id = as.factor(speech_id))
+
+descr103 <- read.table("hein-daily/descr_103.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+  mutate(speech_id = as.factor(speech_id))
+
+big_103 <- left_join(descr103, speech103, by = "speech_id")
+
+opioid_103 <- big_103 %>%
+  filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
+                                  ignore_case = TRUE)))
+
+nrow(opioid_103)
+nrow(big_103)
+
+#102
+speech102 <- read.table("hein-daily/speeches_102.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+  mutate(speech_id = as.factor(speech_id))
+
+descr102 <- read.table("hein-daily/descr_102.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+  mutate(speech_id = as.factor(speech_id))
+
+big_102 <- left_join(descr102, speech102, by = "speech_id")
+
+opioid_102 <- big_102 %>%
+  filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
+                                  ignore_case = TRUE)))
+
+nrow(opioid_102)
+nrow(big_102)
 
 ```
 
+```{r freq viz}
 
+fent_102 <- opioid_102 %>%
+  filter(str_detect(speech, regex("fentanyl", 
+                                  ignore_case = TRUE)))
+fent_103 <- opioid_103 %>%
+  filter(str_detect(speech, regex("fentanyl", 
+                                  ignore_case = TRUE)))
+fent_104 <- opioid_104 %>%
+  filter(str_detect(speech, regex("fentanyl", 
+                                  ignore_case = TRUE)))
+fent_105 <- opioid_105 %>%
+  filter(str_detect(speech, regex("fentanyl", 
+                                  ignore_case = TRUE)))
+fent_106 <- opioid_106 %>%
+  filter(str_detect(speech, regex("fentanyl", 
+                                  ignore_case = TRUE)))
+fent_107 <- opioid_107 %>%
+  filter(str_detect(speech, regex("fentanyl", 
+                                  ignore_case = TRUE)))
+fent_108 <- opioid_108 %>%
+  filter(str_detect(speech, regex("fentanyl", 
+                                  ignore_case = TRUE)))
+fent_109 <- opioid_109 %>%
+  filter(str_detect(speech, regex("fentanyl", 
+                                  ignore_case = TRUE)))
+fent_110 <- opioid_110 %>%
+  filter(str_detect(speech, regex("fentanyl", 
+                                  ignore_case = TRUE)))
+fent_111 <- opioid_111 %>%
+  filter(str_detect(speech, regex("fentanyl", 
+                                  ignore_case = TRUE)))
+fent_112 <- opioid_112 %>%
+  filter(str_detect(speech, regex("fentanyl", 
+                                  ignore_case = TRUE)))
+fent_113 <- opioid_113 %>%
+  filter(str_detect(speech, regex("fentanyl", 
+                                  ignore_case = TRUE)))
+fent_114 <- opioid_114 %>%
+  filter(str_detect(speech, regex("fentanyl", 
+                                  ignore_case = TRUE)))
+
+freq <- tibble(session = c(102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114), 
+               opioid = c(nrow(opioid_102), nrow(opioid_103), nrow(opioid_104), nrow(opioid_105), nrow(opioid_106), nrow(opioid_107), nrow(opioid_108), nrow(opioid_109), nrow(opioid_110), nrow(opioid_111), nrow(opioid_112), nrow(opioid_113), nrow(opioid_114)),
+               fent = c(nrow(fent_102), nrow(fent_103), nrow(fent_104), nrow(fent_105), nrow(fent_106), nrow(fent_107), nrow(fent_108), nrow(fent_109), nrow(fent_110), nrow(fent_111), nrow(fent_112), nrow(fent_113), nrow(fent_114)),
+               total = c(nrow(big_102), nrow(big_103), nrow(big_104), nrow(big_105), nrow(big_106), nrow(big_107), nrow(big_108), nrow(big_109), nrow(big_110), nrow(big_111), nrow(big_112), nrow(big_113), nrow(big_114))) %>%
+  mutate(opioid_freq = opioid / total,
+         fent_freq = fent / total,
+         fent_op = fent / opioid)
+
+freq %>% ggplot(aes(x = session, y = opioid_freq)) +
+  geom_col(fill = "darkblue")
+  
+freq %>% ggplot(aes(x = session, y = fent_freq)) +
+  geom_col(fill = "darkblue")
+
+freq %>% ggplot(aes(x = session, y = fent_op)) +
+  geom_col(fill = "darkblue")
+```
 
 
 
