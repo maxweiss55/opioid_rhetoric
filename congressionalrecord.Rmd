@@ -233,10 +233,199 @@ opioid_102 <- big_102 %>%
 nrow(opioid_102)
 nrow(big_102)
 
+speech111 %>% 
+  filter(str_detect(speech, "I yield back our time."))
+
+teste <- read_table("hein-daily/speeches_111.txt", progress = show_progress())
+teste2 <- teste %>%
+  separate(`speech_id|speech`, sep = "\\|", into = c("speech_id", "speech"))
+
+glimpse(teste2)
+
+teste %>% filter(nrow()==42301)
+teste$`speech_id|speech`[42301]
+
+teste2 %>% filter(speech_id == as.character(1110107946)) 
+```
+```{r data fix}
+
+big_102a <- big_102 %>%
+  mutate(session = 102)
+big_103a <- big_103 %>%
+  mutate(session = 103)
+big_104a <- big_104 %>%
+  mutate(session = 104)
+big_105a <- big_105 %>%
+  mutate(session = 105)
+big_106a <- big_106 %>%
+  mutate(session = 106)
+big_107a <- big_107 %>%
+  mutate(session = 107)
+big_108a <- big_108 %>%
+  mutate(session = 108)
+big_109a <- big_109 %>%
+  mutate(session = 109)
+big_110a <- big_110 %>%
+  mutate(session = 110)
+big_111a <- big_111 %>%
+  mutate(session = 111)
+big_112a <- big_112 %>%
+  mutate(session = 112)
+big_113a <- big_113 %>%
+  mutate(session = 113)
+big_114a <- big_114 %>%
+  mutate(session = 114)
+
+big_all <- rbind(big_102a, big_103a, big_104a, big_105a, big_106a, big_107a, big_108a, big_109a, big_110a, big_111a, big_112a, big_113a, big_114a)
+
+write_rds(big_all, "big_all.rds")
+
+all_samp <- sample_n(big_all,100)
+write_csv(all_samp, "all_samp.csv")
+
 ```
 
-```{r freq viz}
+```{r data build WORKING CHUNK}
+descr114 <- read_table("hein-daily/descr_114.txt", col_names = "col") %>%
+  separate(`col`, sep = "\\|", into = c("speech_id", "chamber", "date", "number_within_file", "speaker", "first_name", "last_name", "state", "gender", "line_start", "line_end", "file", "char_count", "word_count"))
+descr113 <- read_table("hein-daily/descr_113.txt", col_names = "col") %>%
+  separate(`col`, sep = "\\|", into = c("speech_id", "chamber", "date", "number_within_file", "speaker", "first_name", "last_name", "state", "gender", "line_start", "line_end", "file", "char_count", "word_count"))
+descr112 <- read_table("hein-daily/descr_112.txt", col_names = "col") %>%
+  separate(`col`, sep = "\\|", into = c("speech_id", "chamber", "date", "number_within_file", "speaker", "first_name", "last_name", "state", "gender", "line_start", "line_end", "file", "char_count", "word_count"))
+descr111 <- read_table("hein-daily/descr_111.txt", col_names = "col") %>%
+  separate(`col`, sep = "\\|", into = c("speech_id", "chamber", "date", "number_within_file", "speaker", "first_name", "last_name", "state", "gender", "line_start", "line_end", "file", "char_count", "word_count"))
+descr110 <- read_table("hein-daily/descr_110.txt", col_names = "col") %>%
+  separate(`col`, sep = "\\|", into = c("speech_id", "chamber", "date", "number_within_file", "speaker", "first_name", "last_name", "state", "gender", "line_start", "line_end", "file", "char_count", "word_count"))
+descr109 <- read_table("hein-daily/descr_109.txt", col_names = "col") %>%
+  separate(`col`, sep = "\\|", into = c("speech_id", "chamber", "date", "number_within_file", "speaker", "first_name", "last_name", "state", "gender", "line_start", "line_end", "file", "char_count", "word_count"))
+descr108 <- read_table("hein-daily/descr_108.txt", col_names = "col") %>%
+  separate(`col`, sep = "\\|", into = c("speech_id", "chamber", "date", "number_within_file", "speaker", "first_name", "last_name", "state", "gender", "line_start", "line_end", "file", "char_count", "word_count"))
+descr107 <- read_table("hein-daily/descr_107.txt", col_names = "col") %>%
+  separate(`col`, sep = "\\|", into = c("speech_id", "chamber", "date", "number_within_file", "speaker", "first_name", "last_name", "state", "gender", "line_start", "line_end", "file", "char_count", "word_count"))
+descr106 <- read_table("hein-daily/descr_106.txt", col_names = "col") %>%
+  separate(`col`, sep = "\\|", into = c("speech_id", "chamber", "date", "number_within_file", "speaker", "first_name", "last_name", "state", "gender", "line_start", "line_end", "file", "char_count", "word_count"))
+descr105 <- read_table("hein-daily/descr_105.txt", col_names = "col") %>%
+  separate(`col`, sep = "\\|", into = c("speech_id", "chamber", "date", "number_within_file", "speaker", "first_name", "last_name", "state", "gender", "line_start", "line_end", "file", "char_count", "word_count"))
+descr104 <- read_table("hein-daily/descr_104.txt", col_names = "col") %>%
+  separate(`col`, sep = "\\|", into = c("speech_id", "chamber", "date", "number_within_file", "speaker", "first_name", "last_name", "state", "gender", "line_start", "line_end", "file", "char_count", "word_count"))
+descr103 <- read_table("hein-daily/descr_103.txt", col_names = "col") %>%
+  separate(`col`, sep = "\\|", into = c("speech_id", "chamber", "date", "number_within_file", "speaker", "first_name", "last_name", "state", "gender", "line_start", "line_end", "file", "char_count", "word_count"))
+descr102 <- read_table("hein-daily/descr_102.txt", col_names = "col") %>%
+  separate(`col`, sep = "\\|", into = c("speech_id", "chamber", "date", "number_within_file", "speaker", "first_name", "last_name", "state", "gender", "line_start", "line_end", "file", "char_count", "word_count"))
 
+
+new114 <- read_table("hein-daily/speeches_114.txt", progress = show_progress()) %>%
+  separate(`speech_id|speech`, sep = "\\|", into = c("speech_id", "speech"))
+
+join114 <- left_join(new114, descr114, by = "speech_id")
+
+
+new113 <- read_table("hein-daily/speeches_113.txt", progress = show_progress()) %>%
+  separate(`speech_id|speech`, sep = "\\|", into = c("speech_id", "speech"))
+
+join113 <- left_join(new113, descr113, by = "speech_id")
+
+
+new112 <- read_table("hein-daily/speeches_112.txt", progress = show_progress()) %>%
+  separate(`speech_id|speech`, sep = "\\|", into = c("speech_id", "speech"))
+
+join112 <- left_join(new112, descr112, by = "speech_id")
+
+
+new111 <- read_table("hein-daily/speeches_111.txt", progress = show_progress()) %>%
+  separate(`speech_id|speech`, sep = "\\|", into = c("speech_id", "speech"))
+
+join111 <- left_join(new111, descr111, by = "speech_id")
+
+new110 <- read_table("hein-daily/speeches_110.txt", progress = show_progress()) %>%
+  separate(`speech_id|speech`, sep = "\\|", into = c("speech_id", "speech"))
+
+join110 <- left_join(new110, descr110, by = "speech_id")
+
+new109 <- read_table("hein-daily/speeches_109.txt", progress = show_progress()) %>%
+  separate(`speech_id|speech`, sep = "\\|", into = c("speech_id", "speech"))
+
+join109 <- left_join(new109, descr109, by = "speech_id")
+
+new108 <- read_table("hein-daily/speeches_108.txt", progress = show_progress()) %>%
+  separate(`speech_id|speech`, sep = "\\|", into = c("speech_id", "speech"))
+
+join108 <- left_join(new108, descr108, by = "speech_id")
+
+new107 <- read_table("hein-daily/speeches_107.txt", progress = show_progress()) %>%
+  separate(`speech_id|speech`, sep = "\\|", into = c("speech_id", "speech"))
+
+join107 <- left_join(new107, descr107, by = "speech_id")
+
+new106 <- read_table("hein-daily/speeches_106.txt", progress = show_progress()) %>%
+  separate(`speech_id|speech`, sep = "\\|", into = c("speech_id", "speech"))
+
+join106 <- left_join(new106, descr106, by = "speech_id")
+
+new105 <- read_table("hein-daily/speeches_105.txt", progress = show_progress()) %>%
+  separate(`speech_id|speech`, sep = "\\|", into = c("speech_id", "speech"))
+
+join105 <- left_join(new105, descr105, by = "speech_id")
+
+new104 <- read_table("hein-daily/speeches_104.txt", progress = show_progress()) %>%
+  separate(`speech_id|speech`, sep = "\\|", into = c("speech_id", "speech"))
+
+join104 <- left_join(new104, descr104, by = "speech_id")
+
+new103 <- read_table("hein-daily/speeches_103.txt", progress = show_progress()) %>%
+  separate(`speech_id|speech`, sep = "\\|", into = c("speech_id", "speech"))
+
+join103 <- left_join(new103, descr103, by = "speech_id")
+
+new102 <- read_table("hein-daily/speeches_102.txt", progress = show_progress()) %>%
+  separate(`speech_id|speech`, sep = "\\|", into = c("speech_id", "speech"))
+
+join102 <- left_join(new102, descr102, by = "speech_id")
+
+join102a <- join102 %>%
+  mutate(session = 102)
+join103a <- join103 %>%
+  mutate(session = 103)
+join104a <- join104 %>%
+  mutate(session = 104)
+join105a <- join105 %>%
+  mutate(session = 105)
+join106a <- join106 %>%
+  mutate(session = 106)
+join107a <- join107 %>%
+  mutate(session = 107)
+join108a <- join108 %>%
+  mutate(session = 108)
+join109a <- join109 %>%
+  mutate(session = 109)
+join110a <- join110 %>%
+  mutate(session = 110)
+join111a <- join111 %>%
+  mutate(session = 111)
+join112a <- join112 %>%
+  mutate(session = 112)
+join113a <- join113 %>%
+  mutate(session = 113)
+join114a <- join114 %>%
+  mutate(session = 114)
+
+joinall <- rbind(join102a, join103a, join104a, join105a, join106a, join107a, join108a, join109a, join110a, join111a, join112a, join113a, join114a)
+
+write_rds(joinall, "joinall.rds")
+
+join_samp <- sample_n(joinall,100)
+write_csv(join_samp, "join_samp.csv")
+
+descr113
+glimpse(new113)
+
+descr106 %>% filter(speech_id == as.factor(1060160857))
+
+descr106 %>% filter(speech_id == as.factor(1060000001))
+```
+
+
+```{r freq viz}
 fent_102 <- opioid_102 %>%
   filter(str_detect(speech, regex("fentanyl", 
                                   ignore_case = TRUE)))
@@ -293,6 +482,7 @@ freq %>% ggplot(aes(x = session, y = fent_freq)) +
 
 freq %>% ggplot(aes(x = session, y = fent_op)) +
   geom_col(fill = "darkblue")
+
 ```
 
 

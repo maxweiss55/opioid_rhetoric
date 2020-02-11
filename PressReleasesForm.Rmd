@@ -1,0 +1,444 @@
+---
+title: "PressReleaseClean"
+author: "Max Weiss"
+date: "2/11/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(rvest)
+library(ProPublicaR)
+library(Rcrawler)
+library(magrittr)
+library(tidyr)
+library(tokenizers)
+library(htmlTable)
+library(XML)
+library(readxl)
+library(tidytext)
+```
+
+```{r url scrape setup}
+
+#The following scrapes one page of search results
+
+#URL of ProPublica search site for "opioid OR opiate"
+url <- "https://projects.propublica.org/represent/statements/search?q=opioid+OR+opiate"
+
+#Get full table of one page + row number
+page_table <- url %>%
+  read_html() %>%
+  html_nodes(xpath='//*[(@id = "statements-table")]') %>%
+  html_table() %>%
+  as_tibble(.name_repair = "minimal") %>%
+  .[[1]] %>%
+  as_tibble() %>%
+  mutate(row = row_number())
+
+#Get press release htmls from one page + row number (cut out all unnecessary htmls)
+htmls <- url %>%
+  read_html() %>%
+  html_nodes(xpath="//a") %>%
+  html_attr('href') %>%
+  tibble() %>%
+  rename("path" = ".") %>%
+  mutate(str = str_detect(path, "http")) %>%
+  mutate(str2 = ifelse(str_detect(path, "propublica"), FALSE, str)) %>%
+  mutate(str3 = ifelse(str_detect(path, "twitter"), FALSE, str)) %>%
+  mutate(str4 = ifelse(str_detect(path, "google"), FALSE, str)) %>%
+  mutate(str5 = ifelse(str_detect(path, "go.pardot.com"), FALSE, str)) %>%
+  filter(str == TRUE & str2 == TRUE & str3 == TRUE & str4 == TRUE & str5 == TRUE) %>%
+  mutate(row = row_number()) %>%
+  select(path, row)
+
+left_join(page_table, htmls, by = "row")
+
+```
+
+```{r scrape loop}
+
+#Collect all ProPublica urls from the search
+
+page_numbers <- c(1:207)
+url_pages <- c()
+
+for (i in page_numbers) {
+  url_pages[[i]] <- str_c("https://projects.propublica.org/represent/statements/search?page=", i,
+                     "&q=opioid+opiate")
+  }
+
+
+#Get table from each ProPublica url and save it in vector "purple"
+#all tables in vector saved under "pagetableX" where "X" is a two- or three-digit number
+#vector saved under "pagetableeX" if "X" is a one-digit number
+
+purple <- c()
+
+for (i in url_pages){
+  
+  page = i
+  
+  pagetab <- page %>%
+    read_html() %>%
+    html_nodes(xpath='//*[(@id = "statements-table")]') %>%
+    html_table() %>%
+    as_tibble(.name_repair = "minimal") %>%
+    .[[1]] %>%
+    as_tibble() %>%
+    mutate(row = row_number())
+  
+  sites <- page %>%
+    read_html() %>%
+    html_nodes(xpath="//a") %>%
+    html_attr('href') %>%
+    tibble() %>%
+    rename("path" = ".") %>%
+    mutate(str = str_detect(path, "http")) %>%
+    mutate(str2 = ifelse(str_detect(path, "propublica"), FALSE, str)) %>%
+    mutate(str3 = ifelse(str_detect(path, "twitter"), FALSE, str)) %>%
+    mutate(str4 = ifelse(str_detect(path, "google"), FALSE, str)) %>%
+    mutate(str5 = ifelse(str_detect(path, "go.pardot.com"), FALSE, str)) %>%
+    filter(str == TRUE & str2 == TRUE & str3 == TRUE & str4 == TRUE & str5 == TRUE) %>%
+    mutate(row = row_number())
+  
+  name_app <- str_extract(i, "...&") %>%
+    str_remove("&") %>%
+    str_remove('\\=')
+  name <- str_c("pagetable", name_app)
+  
+  joined <- left_join(pagetab, sites, by = "row")
+  #assign(name, joined)
+  purple[[name]] <- joined
+  print(name_app)
+}
+
+
+#Build master table pagetable_all
+
+pagetable_all <- rbind(purple$pagetablee1,
+purple$pagetablee2,
+purple$pagetablee3,
+purple$pagetablee4,
+purple$pagetablee5,
+purple$pagetablee6,
+purple$pagetablee7,
+purple$pagetablee8,
+purple$pagetablee9,
+purple$pagetable10,
+purple$pagetable11,
+purple$pagetable12,
+purple$pagetable13,
+purple$pagetable14,
+purple$pagetable15,
+purple$pagetable16,
+purple$pagetable17,
+purple$pagetable18,
+purple$pagetable19,
+purple$pagetable20,
+purple$pagetable21,
+purple$pagetable22,
+purple$pagetable23,
+purple$pagetable24,
+purple$pagetable25,
+purple$pagetable26,
+purple$pagetable27,
+purple$pagetable28,
+purple$pagetable29,
+purple$pagetable30,
+purple$pagetable31,
+purple$pagetable32,
+purple$pagetable33,
+purple$pagetable34,
+purple$pagetable35,
+purple$pagetable36,
+purple$pagetable37,
+purple$pagetable38,
+purple$pagetable39,
+purple$pagetable40,
+purple$pagetable41,
+purple$pagetable42,
+purple$pagetable43,
+purple$pagetable44,
+purple$pagetable45,
+purple$pagetable46,
+purple$pagetable47,
+purple$pagetable48,
+purple$pagetable49,
+purple$pagetable50,
+purple$pagetable51,
+purple$pagetable52,
+purple$pagetable53,
+purple$pagetable54,
+purple$pagetable55,
+purple$pagetable56,
+purple$pagetable57,
+purple$pagetable58,
+purple$pagetable59,
+purple$pagetable60,
+purple$pagetable61,
+purple$pagetable62,
+purple$pagetable63,
+purple$pagetable64,
+purple$pagetable65,
+purple$pagetable66,
+purple$pagetable67,
+purple$pagetable68,
+purple$pagetable69,
+purple$pagetable70,
+purple$pagetable71,
+purple$pagetable72,
+purple$pagetable73,
+purple$pagetable74,
+purple$pagetable75,
+purple$pagetable76,
+purple$pagetable77,
+purple$pagetable78,
+purple$pagetable79,
+purple$pagetable80,
+purple$pagetable81,
+purple$pagetable82,
+purple$pagetable83,
+purple$pagetable84,
+purple$pagetable85,
+purple$pagetable86,
+purple$pagetable87,
+purple$pagetable88,
+purple$pagetable89,
+purple$pagetable90,
+purple$pagetable91,
+purple$pagetable92,
+purple$pagetable93,
+purple$pagetable94,
+purple$pagetable95,
+purple$pagetable96,
+purple$pagetable97,
+purple$pagetable98,
+purple$pagetable99,
+purple$pagetable100,
+purple$pagetable101,
+purple$pagetable102,
+purple$pagetable103,
+purple$pagetable104,
+purple$pagetable105,
+purple$pagetable106,
+purple$pagetable107,
+purple$pagetable108,
+purple$pagetable109,
+purple$pagetable110,
+purple$pagetable111,
+purple$pagetable112,
+purple$pagetable113,
+purple$pagetable114,
+purple$pagetable115,
+purple$pagetable116,
+purple$pagetable117,
+purple$pagetable118,
+purple$pagetable119,
+purple$pagetable120,
+purple$pagetable121,
+purple$pagetable122,
+purple$pagetable123,
+purple$pagetable124,
+purple$pagetable125,
+purple$pagetable126,
+purple$pagetable127,
+purple$pagetable128,
+purple$pagetable129,
+purple$pagetable130,
+purple$pagetable131,
+purple$pagetable132,
+purple$pagetable133,
+purple$pagetable134,
+purple$pagetable135,
+purple$pagetable136,
+purple$pagetable137,
+purple$pagetable138,
+purple$pagetable139,
+purple$pagetable140,
+purple$pagetable141,
+purple$pagetable142,
+purple$pagetable143,
+purple$pagetable144,
+purple$pagetable145,
+purple$pagetable146,
+purple$pagetable147,
+purple$pagetable148,
+purple$pagetable149,
+purple$pagetable150,
+purple$pagetable151,
+purple$pagetable152,
+purple$pagetable153,
+purple$pagetable154,
+purple$pagetable155,
+purple$pagetable156,
+purple$pagetable157,
+purple$pagetable158,
+purple$pagetable159,
+purple$pagetable160,
+purple$pagetable161,
+purple$pagetable162,
+purple$pagetable163,
+purple$pagetable164,
+purple$pagetable165,
+purple$pagetable166,
+purple$pagetable167,
+purple$pagetable168,
+purple$pagetable169,
+purple$pagetable170,
+purple$pagetable171,
+purple$pagetable172,
+purple$pagetable173,
+purple$pagetable174,
+purple$pagetable175,
+purple$pagetable176,
+purple$pagetable177,
+purple$pagetable178,
+purple$pagetable179,
+purple$pagetable180,
+purple$pagetable181,
+purple$pagetable182,
+purple$pagetable183,
+purple$pagetable184,
+purple$pagetable185,
+purple$pagetable186,
+purple$pagetable187,
+purple$pagetable188,
+purple$pagetable189,
+purple$pagetable190,
+purple$pagetable191,
+purple$pagetable192,
+purple$pagetable193,
+purple$pagetable194,
+purple$pagetable195,
+purple$pagetable196,
+purple$pagetable197,
+purple$pagetable198,
+purple$pagetable199,
+purple$pagetable200,
+purple$pagetable201,
+purple$pagetable202,
+purple$pagetable203,
+purple$pagetable204,
+purple$pagetable205,
+purple$pagetable206,
+purple$pagetable207) %>%
+  select(X1:X5, path)
+
+write_csv(pagetable_all, "tableall_messy.csv")
+
+###
+
+alltable_clean <- pagetable_all %>%
+  mutate(state = X4) %>%
+  mutate(state = ifelse(str_detect(X4, "Ala."), "AL", state),
+         state = ifelse(str_detect(X4, "Alaska"), "AK", state),
+         state = ifelse(str_detect(X4, "American Samoa"), NA_character_, state),
+         state = ifelse(str_detect(X4, "Ariz."), "AZ", state),
+         state = ifelse(str_detect(X4, "Ark."), "AR", state),
+         state = ifelse(str_detect(X4, "Calif."), "CA", state),
+         state = ifelse(str_detect(X4, "Colo."), "CO", state),
+         state = ifelse(str_detect(X4, "Conn."), "CT", state),
+         state = ifelse(str_detect(X4, "D.C."), NA_character_, state),
+         state = ifelse(str_detect(X4, "Del."), "DE", state),
+         state = ifelse(str_detect(X4, "Fla."), "FL", state),
+         state = ifelse(str_detect(X4, "Ga."), "GA", state),
+         state = ifelse(str_detect(X4, "Hawaii"), "HI", state),
+         state = ifelse(str_detect(X4, "Idaho"), "ID", state),
+         state = ifelse(str_detect(X4, "Ill."), "IL", state),
+         state = ifelse(str_detect(X4, "Ind."), "IN", state),
+         state = ifelse(str_detect(X4, "Iowa"), "IA", state),
+         state = ifelse(str_detect(X4, "Kan."), "KS", state),
+         state = ifelse(str_detect(X4, "Ky."), "KY", state),
+         state = ifelse(str_detect(X4, "La."), "LA", state),
+         state = ifelse(str_detect(X4, "Maine"), "ME", state),
+         state = ifelse(str_detect(X4, "Mass."), "MA", state),
+         state = ifelse(str_detect(X4, "Md."), "MD", state),
+         state = ifelse(str_detect(X4, "Mich."), "MI", state),
+         state = ifelse(str_detect(X4, "Minn."), "MN", state),
+         state = ifelse(str_detect(X4, "Miss."), "MS", state),
+         state = ifelse(str_detect(X4, "Mo."), "MO", state),
+         state = ifelse(str_detect(X4, "Mont."), "MT", state),
+         state = ifelse(str_detect(X4, "N.C."), "NC", state),
+         state = ifelse(str_detect(X4, "N.D."), "ND", state),
+         state = ifelse(str_detect(X4, "N.H."), "NH", state),
+         state = ifelse(str_detect(X4, "N.J."), "NJ", state),
+         state = ifelse(str_detect(X4, "N.M."), "NM", state),
+         state = ifelse(str_detect(X4, "N.Y."), "NY", state),
+         state = ifelse(str_detect(X4, "Neb."), "NE", state),
+         state = ifelse(str_detect(X4, "Nev."), "NV", state),
+         state = ifelse(str_detect(X4, "Northern Marina Islands"), NA_character_, state),
+         state = ifelse(str_detect(X4, "Ohio"), "OH", state),
+         state = ifelse(str_detect(X4, "Okla."), "OK", state),
+         state = ifelse(str_detect(X4, "Ore."), "OR", state),
+         state = ifelse(str_detect(X4, "Pa."), "PA", state),
+         state = ifelse(str_detect(X4, "Puerto Rico"), NA_character_, state),
+         state = ifelse(str_detect(X4, "R.I."), "RI", state),
+         state = ifelse(str_detect(X4, "S.C."), "SC", state),
+         state = ifelse(str_detect(X4, "S.D."), "SD", state),
+         state = ifelse(str_detect(X4, "Tenn."), "TN", state),
+         state = ifelse(str_detect(X4, "Texas"), "TX", state),
+         state = ifelse(str_detect(X4, "Utah"), "UT", state),
+         state = ifelse(str_detect(X4, "Va."), "VA", state),
+         state = ifelse(str_detect(X4, "Vt."), "VT", state),
+         state = ifelse(str_detect(X4, "W.Va."), "WV", state),
+         state = ifelse(str_detect(X4, "Wash."), "WA", state),
+         state = ifelse(str_detect(X4, "Wis."), "WI", state),
+         state = ifelse(str_detect(X4, "Wyo."), "WY", state)) %>%
+  mutate(year = X1) %>%
+  mutate(year = ifelse(str_detect(X1, "2008"), "2008", year),
+         year = ifelse(str_detect(X1, "2009"), "2009", year),
+         year = ifelse(str_detect(X1, "2010"), "2010", year),
+         year = ifelse(str_detect(X1, "2011"), "2011", year),
+         year = ifelse(str_detect(X1, "2012"), "2012", year),
+         year = ifelse(str_detect(X1, "2013"), "2013", year),
+         year = ifelse(str_detect(X1, "2014"), "2014", year),
+         year = ifelse(str_detect(X1, "2015"), "2015", year),
+         year = ifelse(str_detect(X1, "2016"), "2016", year),
+         year = ifelse(str_detect(X1, "2017"), "2017", year),
+         year = ifelse(str_detect(X1, "2018"), "2018", year),
+         year = ifelse(str_detect(X1, "2019"), "2019", year),
+         year = ifelse(str_detect(X1, "2020"), "2020", year),
+         year = ifelse(str_detect(X1, "Feb"), "2020", year),
+         year = ifelse(str_detect(X1, "Jan"), "2020", year),
+         year = ifelse(X1 == "", "2017", year),
+         year = ifelse(is.na(X1) & X2 == "Jeanne Shaheen", "2017", year),
+         year = ifelse(is.na(X1) & X2 == "Jackie Walorski", "2016", year)) %>%
+  mutate(month = X1) %>%
+  mutate(month = ifelse(str_detect(X1, "Jan"), "1", month),
+         month = ifelse(str_detect(X1, "Feb"), "2", month),
+         month = ifelse(str_detect(X1, "Mar"), "3", month),
+         month = ifelse(str_detect(X1, "Apr"), "4", month),
+         month = ifelse(str_detect(X1, "May"), "5", month),
+         month = ifelse(str_detect(X1, "Jun"), "6", month),
+         month = ifelse(str_detect(X1, "Jul"), "7", month),
+         month = ifelse(str_detect(X1, "Aug"), "8", month),
+         month = ifelse(str_detect(X1, "Sep"), "9", month),
+         month = ifelse(str_detect(X1, "Oct"), "10", month),
+         month = ifelse(str_detect(X1, "Nov"), "11", month),
+         month = ifelse(str_detect(X1, "Dec"), "12", month)) %>%
+  mutate(day = str_extract(X1, "[1234567890,]"))
+    
+    
+    
+    
+  mutate(month = ifelse(str_detect(X1, "Jan"), "1", month),
+         month = ifelse(str_detect(X1, "Feb"), "2", month),
+         month = ifelse(str_detect(X1, "Mar"), "3", month),
+         month = ifelse(str_detect(X1, "Apr"), "4", month),
+         month = ifelse(str_detect(X1, "May"), "5", month),
+         month = ifelse(str_detect(X1, "Jun"), "6", month),
+         month = ifelse(str_detect(X1, "Jul"), "7", month),
+         month = ifelse(str_detect(X1, "Aug"), "8", month),
+         month = ifelse(str_detect(X1, "Sep"), "9", month),
+         month = ifelse(str_detect(X1, "Oct"), "10", month),
+         month = ifelse(str_detect(X1, "Nov"), "11", month),
+         month = ifelse(str_detect(X1, "Dec"), "12", month))
+  
+
+
+alltable_clean
+```
+
+
