@@ -18,6 +18,7 @@ library(htmlTable)
 library(XML)
 library(readxl)
 library(tidytext)
+library(htmltidy)
 ```
 
 ```{r url scrape setup}
@@ -57,7 +58,7 @@ left_join(page_table, htmls, by = "row")
 
 ```
 
-```{r scrape loop}
+```{r scrape loop and clean}
 
 #Collect all ProPublica urls from the search
 
@@ -475,8 +476,50 @@ alltable_clean3 <- alltable_clean2 %>%
   select(-middle)
 
 write_rds(alltable_clean3, 'master_clean.rds')
-master_clean <- read_rds('master_clean.rds')
 
 ```
 
+```{r scrape press release text loop}
 
+master_clean <- read_rds('master_clean.rds')
+#10,278 rows
+
+master_clean <- master_clean %>%
+  distinct(path, .keep_all = TRUE) #10,275 (3 duplicated and removed) rows
+
+master_clean$text <- "ERROR"
+master_text <- master_clean[1,] %>%
+  mutate(date_label = "root", member = "root", title = "root", path = "root", year = "root", month = "root", day = "root", state = "root", party = "root", text = "root")
+  
+
+for (i in master_clean$path[1:10]) {
+    tryCatch(
+        expr = {j <- i %>%
+                  read_html() %>%
+                  html_text() %>%
+                  str_replace_all("[\\\"\\;\\:\\.\\,\\`\\~\\!\\?\\_\\>\\<\\=\\^\\#\\@\\*\\{\\}\\[\\]\\$\\×\\|\\=\\+\\n\\/\\)\\(\\\\\\t\\r]", " ")
+                
+                master_layer <- master_clean %>%
+                    filter(path == i) %>%
+                    mutate(text = j)
+
+                print(i)
+        },
+        error = function(e){
+            message("* Caught an error on itertion ", i)
+            print(e)
+        },
+        warning = function(w) {
+            message("* Caught an warning on itertion ", i)
+            print(w)
+        },
+        finally={
+          
+          master_text <- rbind(master_text, master_layer)
+        }
+    )
+}
+
+master_text <- master_text %>%
+  filter(date_label != "root")
+```
