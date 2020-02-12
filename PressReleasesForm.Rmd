@@ -328,8 +328,6 @@ purple$pagetable207) %>%
 
 write_csv(pagetable_all, "tableall_messy.csv")
 
-###
-
 alltable_clean <- pagetable_all %>%
   mutate(state = X4) %>%
   mutate(state = ifelse(str_detect(X4, "Ala."), "AL", state),
@@ -386,6 +384,7 @@ alltable_clean <- pagetable_all %>%
          state = ifelse(str_detect(X4, "Wash."), "WA", state),
          state = ifelse(str_detect(X4, "Wis."), "WI", state),
          state = ifelse(str_detect(X4, "Wyo."), "WY", state)) %>%
+  filter(!is.na(state)) %>% #34 press releases from non-voting members
   mutate(year = X1) %>%
   mutate(year = ifelse(str_detect(X1, "2008"), "2008", year),
          year = ifelse(str_detect(X1, "2009"), "2009", year),
@@ -418,27 +417,40 @@ alltable_clean <- pagetable_all %>%
          month = ifelse(str_detect(X1, "Oct"), "10", month),
          month = ifelse(str_detect(X1, "Nov"), "11", month),
          month = ifelse(str_detect(X1, "Dec"), "12", month)) %>%
-  mutate(day = str_extract(X1, "[1234567890,]"))
-    
-    
-    
-    
-  mutate(month = ifelse(str_detect(X1, "Jan"), "1", month),
-         month = ifelse(str_detect(X1, "Feb"), "2", month),
-         month = ifelse(str_detect(X1, "Mar"), "3", month),
-         month = ifelse(str_detect(X1, "Apr"), "4", month),
-         month = ifelse(str_detect(X1, "May"), "5", month),
-         month = ifelse(str_detect(X1, "Jun"), "6", month),
-         month = ifelse(str_detect(X1, "Jul"), "7", month),
-         month = ifelse(str_detect(X1, "Aug"), "8", month),
-         month = ifelse(str_detect(X1, "Sep"), "9", month),
-         month = ifelse(str_detect(X1, "Oct"), "10", month),
-         month = ifelse(str_detect(X1, "Nov"), "11", month),
-         month = ifelse(str_detect(X1, "Dec"), "12", month))
-  
+  mutate(day = str_extract(X1, "[[:digit:]]+")) %>%
+  mutate(party = X3) %>%
+  mutate(party = ifelse(X3 %in% c("ID","I"), "I", party)) %>%
+  mutate(member = X2) %>%
+  mutate(date_label = X1) %>%
+  mutate(title = X5) %>%
+  select(date_label, member, title, path, year, month, day, state, party)
 
+write_csv(alltable_clean, "alltable_clean.csv")
+alltable_clean2 <- read_csv("alltable_clean_edit.csv")
+alltable_clean3 <- alltable_clean2 %>%
+  mutate(member = str_remove(member, "[:punct:][A-Z][0-9][0-9][0-9][0-9][0-9][0-9][:punct:]"),
+         member = str_replace_all(member, "\\-", " "),
+         member = str_to_title(member),
+         member = str_replace(member, "Iii", "III"),
+         member = str_replace(member, "Ii", "II"),
+         member = str_replace(member, "Ben Ray Luj%C3%A1n", "Ben Ray Luján"),
+         member = str_replace(member, "C.a. Dutch Ruppersberger", "C.A. Dutch Ruppersberger"),
+         member = str_replace(member, "Ca Dutch Ruppersberger", "C.A. Dutch Ruppersberger"),
+         member = str_replace(member, "Donald M. Payne Jr.", "Donald M. Payne Jr"),
+         member = str_replace(member, "Donald M. Payne Jr", "Donald M. Payne Jr."),
+         member = str_replace(member, "Bill Pascrell Jr.", "Bill Pascrell Jr"),
+         member = str_replace(member, "Bill Pascrell Jr", "Bill Pascrell Jr.")) %>%
+  mutate(middle = str_extract(member, "[:space:][A-Z][:space:]"),
+         middle = ifelse(!is.na(middle), paste(middle, ".", sep = ""), middle),
+         middle = str_replace(middle, "[:space:]\\.", "\\. ")) %>%
+  mutate(member = str_replace_all(member, "[:space:][A-Z][:space:]", middle)) %>%
+  select(-middle)
+         
+#COREYBOOKER?, Bradley Byrne?, Mc____s,
 
-alltable_clean
+alltable_clean3 %>% count(member)
+alltable_clean3[8741:8900,]
+
 ```
 
 
