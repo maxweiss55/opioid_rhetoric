@@ -423,10 +423,14 @@ alltable_clean <- pagetable_all %>%
   mutate(member = X2) %>%
   mutate(date_label = X1) %>%
   mutate(title = X5) %>%
-  select(date_label, member, title, path, year, month, day, state, party)
+  mutate(constituency = X4) %>%
+  select(date_label, member, title, path, year, month, day, state, constituency, party)
+
+alltable_clean %>% count(title)
 
 write_csv(alltable_clean, "alltable_clean.csv")
 alltable_clean2 <- read_csv("alltable_clean_edit.csv")
+
 alltable_clean3 <- alltable_clean2 %>%
   mutate(member = str_remove(member, "[:punct:][A-Z][0-9][0-9][0-9][0-9][0-9][0-9][:punct:]"),
          member = str_replace_all(member, "\\-", " "),
@@ -436,20 +440,42 @@ alltable_clean3 <- alltable_clean2 %>%
          member = str_replace(member, "Ben Ray Luj%C3%A1n", "Ben Ray Luján"),
          member = str_replace(member, "C.a. Dutch Ruppersberger", "C.A. Dutch Ruppersberger"),
          member = str_replace(member, "Ca Dutch Ruppersberger", "C.A. Dutch Ruppersberger"),
-         member = str_replace(member, "Donald M. Payne Jr.", "Donald M. Payne Jr"),
-         member = str_replace(member, "Donald M. Payne Jr", "Donald M. Payne Jr."),
          member = str_replace(member, "Bill Pascrell Jr.", "Bill Pascrell Jr"),
          member = str_replace(member, "Bill Pascrell Jr", "Bill Pascrell Jr.")) %>%
   mutate(middle = str_extract(member, "[:space:][A-Z][:space:]"),
          middle = ifelse(!is.na(middle), paste(middle, ".", sep = ""), middle),
          middle = str_replace(middle, "[:space:]\\.", "\\. ")) %>%
-  mutate(member = str_replace_all(member, "[:space:][A-Z][:space:]", middle)) %>%
+  mutate(member = str_replace_all(member, "[:space:][A-Z][:space:]", middle),
+         member = str_to_lower(member),
+         member = str_replace(member, "donald m. payne jr.", "donald m. payne jr"),
+         member = str_replace(member, "donald m. payne jr", "donald m. payne jr."),
+         member = str_remove(member, "\\."),
+         member = str_replace(member, "f james sensenbrenner", "f. james sensenbrenner"),
+         member = str_replace(member, "sanford d. bishop jr.", "sanford d. bishop jr"),
+         member = str_replace(member, "sanford d. bishop jr", "sanford d. bishop jr."),
+         member = str_replace(member, "cory  booker", "cory booker"),
+         member = str_replace(member, "bradley[:space:]+byrne", "bradley bryne"),
+         member = str_replace(member, "hank  johnson", "hank johnson"),
+         member = str_replace(member, "jerrod", "jerrold"),
+         member = str_replace(member, "jerrold  nadler", "jerrold nadler"),
+         member = str_replace(member, "jerrold[:space:]+nadler", "jerrold nadler"),
+         member = str_replace(member, "jerrold  nadler", "jerrod nadler"),
+         member = str_replace(member, "lamar  alexander", "lamar alexander"),
+         member = str_replace(member, "robin  kelly", "robin kelly"),
+         member = str_replace(member, "roy  blunt", "roy blunt"),
+         member = str_replace(member, "sherrod  brown", "sherrod brown"),
+         member = str_replace(member, "tom  cole", "tom cole"),
+         member = str_replace(member, "[:space:]+", " "),
+         member = str_replace(member, "é", "e"),
+         member = str_replace(member, "á", "a"),
+         member = str_replace(member, "í", "i"),
+         member = str_replace(member, "ú", "u"),
+         member = str_remove(member, "\\."),
+         member = str_remove(member, "\\'")) %>%
   select(-middle)
-         
-#COREYBOOKER?, Bradley Byrne?, Mc____s,
 
-alltable_clean3 %>% count(member)
-alltable_clean3[8741:8900,]
+write_rds(alltable_clean3, 'master_clean.rds')
+master_clean <- read_rds('master_clean.rds')
 
 ```
 
