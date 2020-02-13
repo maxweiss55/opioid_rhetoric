@@ -521,5 +521,5 @@ for (i in master_clean$path[1:10]) {
 }
 
 master_text <- master_text %>%
-  filter(date_label != "root")
+  filter(date_label != "root") 
 ```
