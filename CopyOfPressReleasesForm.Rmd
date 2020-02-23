@@ -1,0 +1,146 @@
+---
+title: "PressReleaseClean"
+author: "Max Weiss"
+date: "2/11/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(rvest)
+library(ProPublicaR)
+library(Rcrawler)
+library(magrittr)
+library(tidyr)
+library(tokenizers)
+library(htmlTable)
+library(XML)
+library(readxl)
+library(tidytext)
+library(htmltidy)
+```
+
+```{r url scrape setup}
+
+#The following scrapes one page of search results
+
+#URL of ProPublica search site for "opioid OR opiate"
+url <- paste0("https://votesmart.org/public-statements/NA/C/?section=officials&s=date&search=opioid&p=", i, ".XlIOEhNKjUo")
+
+#Get full table of one page + row number
+read <- url %>%
+  read_html()
+
+page_table <- read %>%
+  html_nodes(xpath='//td') %>%
+  html_text() %>%
+  as_tibble() %>%
+  mutate(index = row_number())
+
+date <- page_table %>%
+  filter((index %% 4) == 1) %>%
+  rename(date = value) %>%
+  select(-index)
+title <- page_table %>%
+  filter((index %% 4) == 2) %>%
+  rename(title = value) %>%
+  select(-index)
+member <- page_table %>%
+  filter((index %% 4) == 3) %>%
+  rename(member = value) %>%
+  select(-index)
+
+path <- read %>%
+  html_nodes(xpath="//a") %>%
+  html_attr('href') %>%
+  as_tibble() %>%
+  filter(str_detect(value, '/public-statement/')) %>%
+  mutate(path = paste0("https://votesmart.org/", value)) %>%
+  select(-value)
+
+layer <- cbind(cbind(cbind(date, title), member), path) %>%
+  mutate(text = NA_character_)
+
+
+for (j in c(1:100)){
+
+layer$text[j] <- paste(html_text(html_nodes(read_html(layer$path[j]), xpath='//p')), collapse = " ")
+}
+
+layer
+
+```
+
+```{r scrape loop and clean}
+
+bigboy <- tibble(date = NA_character_, title = NA_character_, member = NA_character_, path = NA_character_, text = NA_character_)
+
+for (i in c(1:136)){
+  
+  url <- paste0("https://votesmart.org/public-statements/NA/C/?section=officials&s=date&search=opioid&p=", i, "#.XlIOEhNKjUo")
+  
+  read <- url %>%
+  read_html()
+
+page_table <- read %>%
+  html_nodes(xpath='//td') %>%
+  html_text() %>%
+  as_tibble() %>%
+  mutate(index = row_number())
+
+date <- page_table %>%
+  filter((index %% 4) == 1) %>%
+  rename(date = value) %>%
+  select(-index)
+title <- page_table %>%
+  filter((index %% 4) == 2) %>%
+  rename(title = value) %>%
+  select(-index)
+member <- page_table %>%
+  filter((index %% 4) == 3) %>%
+  rename(member = value) %>%
+  select(-index)
+
+path <- read %>%
+  html_nodes(xpath="//a") %>%
+  html_attr('href') %>%
+  as_tibble() %>%
+  filter(str_detect(value, '/public-statement/')) %>%
+  mutate(path = paste0("https://votesmart.org/", value)) %>%
+  select(-value)
+
+layer <- cbind(cbind(cbind(date, title), member), path) %>%
+  mutate(text = NA_character_)
+
+
+for (j in c(1:100)){
+
+layer$text[j] <- paste(html_text(html_nodes(read_html(layer$path[j]), xpath='//p')), collapse = " ")
+print(j)
+}
+  bigboy <- rbind(bigboy, layer)
+  write_rds(bigboy, 'bigboy.rds')
+  print(i)
+}
+
+
+bigboy1 <- bigboy %>%
+  mutate(text = str_remove_all(text, " All content © 1992 - 2020 Vote Smart unless otherwise attributed - Privacy Policy - Legislative demographic data provided by Aristotle International, Inc. Mobile Version \\#\\{text\\} You are about to be redirected to a secure checkout page. Please note: The total order amount will read \\$0.01. This is a card processor fee. Please know that a recurring donation of the amount and frequency that you selected will be processed and initiated tomorrow. You may see a one-time charge of \\$0.01 on your statement. Continue to secure page »")) %>%
+  filter(!str_detect(title, "^Letter to") & !str_detect(title, "^Providing for Consideration"))
+
+write_rds(bigboy1, 'bigboyclean.rds')
+
+```
+
+
+```{r scrape loop and clean}
+
+
+bigboyclean <- read_rds('bigboyclean.rds')
+
+bigboyclean %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words) %>%
+  count(word, sort = TRUE)
+```

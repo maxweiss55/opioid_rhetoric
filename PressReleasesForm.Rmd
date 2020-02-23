@@ -482,6 +482,7 @@ write_rds(alltable_clean3, 'master_clean.rds')
 ```{r scrape press release text loop}
 
 master_clean <- read_rds('master_clean.rds')
+
 #10,278 rows
 
 master_clean <- master_clean %>%
@@ -522,4 +523,147 @@ for (i in master_clean$path[1:10]) {
 
 master_text <- master_text %>%
   filter(date_label != "root") 
+
+master_text %>% write_rds("master_text.rds")
+
+master_text %>% write.table("master_text.txt")
+```
+
+```{r merge recovery}
+
+texty <- read_csv("texty.csv")
+master_text <- read_rds("master_text.rds")
+
+text_merge <- texty %>%
+  select(-X1) %>%
+  mutate(year = as.character(year),
+         month = as.character(month),
+         day = as.character(day)) %>%
+  left_join(master_text) %>%
+  filter(Text == "ERROR" | is.na(Text)) %>%
+  mutate(text = ifelse(is.na(text), NA_character_, "Exists"))
+
+write.csv(text_merge, "text_merge.csv")
+
+#ACTUALLY JUST START HERE
+texty <- read_csv("texty.csv")
+
+#PORTMAN
+portman_recov <- texty %>%
+  filter(member == "rob portman") %>%
+  filter(Text == "ERROR")
+  
+mauve <- c(path = 'row', Text = 'row')
+counter = 0
+for (i in portman_recov$path){
+  tryCatch({
+  page = i
+  
+  text <- page %>%
+  read_html() %>%
+  html_nodes(".bs-region--left") %>%
+  html_text()
+  },
+        error = function(e){
+            message("* Caught an error on itertion ", i)
+            text <- "ERROR"
+            print(e)
+        },
+        warning = function(w) {
+            message("* Caught an warning on itertion ", i)
+            text <- "ERROR"
+            print(w)
+        },
+        finally={
+            row <- c(path = i, Text = text)
+            mauve <- rbind(mauve, row)
+            counter <- counter + 1
+            print(counter)
+            print(i)
+        }
+    )
+}
+
+
+text_portman <- as_tibble(mauve) %>%
+  filter(path != "row") %>%
+  mutate(portman = Text) %>%
+  filter(!str_detect(portman, "ERROR") & !str_detect(portman, "Carper Letter Outlines Failure of Federal Agencies to Comply With the STOP Act") & !str_detect(portman, "Heroin Bill Helps Women & Babies")) %>%
+  select(path, portman)
+
+#Merge to add portman
+portman_recov <- texty %>%
+  left_join(text_portman) %>%
+  mutate(Text = ifelse(member == "rob portman" & Text == "ERROR", portman, Text)) %>%
+  select(-portman)
+
+write_rds(portman_recov, "even_cleaner.rds")
+
+#OFFICIAL CLEANEST VERSION YOU HAVE, SUMO HAS A BUNCH OF CORRECTED URLS THOUGH
+even_cleaner <- read_rds("even_cleaner.rds")
+
+#CATCHALL REPAIR MAGIC
+err_still <- read_rds("even_cleaner.rds") %>% 
+  filter(Text == "ERROR" | is.na(Text))
+
+#JUST GOTTA FIX THESE MANUALLY
+write_csv(err_still, "err_still.csv")
+
+#With just title, this stuff does not work well enough though
+cumul <- c(path = "row", path_fix = "row")
+for (i in c(1:671)){
+  earl = err_still$path[i]
+  tit = err_still$title[i]
+  mem = err_still$member[i]
+  titmem = paste(tit, mem)
+  matchkey = str_match(earl, "https://(.*?).gov")[,2]
+  matchkey2 = str_match(earl, "www.(.*?).gov")[,2]
+
+  mainpage <- read_html(paste0("http://www.google.com/search?q=", 
+                             str_replace_all(titmem, "[:space:]", "%20"))) %>%
+    html_nodes("a") %>%
+    html_attr("href") %>%
+    as_tibble() %>%
+    filter(str_detect(value, matchkey)) %>%
+    mutate(value = str_sub(value, 8, 1000)) %>%
+    mutate(value = str_extract(value, "[^&]+"))
+  
+  if (!is.na(mainpage$value[1])) {
+    print(i)
+    print(mainpage$value[1])
+    it <- c(path = err_still$path[i], path_fix = mainpage$value[1])
+    cumul <- rbind(cumul, it)
+  } else {
+    
+  mainpage <- read_html(paste0("http://www.google.com/search?q=", 
+                             str_replace_all(titmem, "[:space:]", "%20"))) %>%
+    html_nodes("a") %>%
+    html_attr("href") %>%
+    as_tibble() %>%
+    filter(str_detect(value, matchkey2)) %>%
+    mutate(value = str_sub(value, 8, 1000))
+  
+  it <- c(path = err_still$path[i], path_fix = mainpage$value[1])
+  cumul <- rbind(cumul, it)
+  print(i)
+  print(mainpage$value[1])
+  }
+}
+as_tibble(cumul)
+
+suma <- as_tibble(cumul)
+write_rds(suma, "suma.rds")
+suma <- read_rds("suma.rds")
+
+textyrec <- even_cleaner %>%
+  left_join(suma)
+
+err_still2 <- textyrec %>%
+  filter((Text == "ERROR" | is.na(Text)) & is.na(path_fix))
+##STOPTHIS
+
+###########
+#THIS IS THE MOST RECOVERED VERSION
+write_rds(portman_recov, "even_cleaner.rds")
+even_cleaner <- read_rds("even_cleaner.rds")
 ```
