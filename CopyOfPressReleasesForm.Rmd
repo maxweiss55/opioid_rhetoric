@@ -19,6 +19,8 @@ library(XML)
 library(readxl)
 library(tidytext)
 library(htmltidy)
+library(jsonlite)
+library(lubridate)
 ```
 
 ```{r url scrape setup}
@@ -136,11 +138,35 @@ write_rds(bigboy1, 'bigboyclean.rds')
 
 ```{r scrape loop and clean}
 
-
+##This is the full built dataset
 bigboyclean <- read_rds('bigboyclean.rds')
 
+#Processing built dataset
+details <- bigboyclean %>% 
+  mutate(office = ifelse(str_detect(member, "Sen\\."), "Senate", "House")) %>%
+  mutate(member = str_remove_all(member, "Sen\\.")) %>%
+  mutate(member = str_remove_all(member, "Rep\\.")) %>%
+  mutate(member = str_to_lower(member)) %>%
+  mutate(date = mdy(date))
+  
+#https://voteview.com/data
+#Lewis, Jeffrey B., Keith Poole, Howard Rosenthal, Adam Boche, Aaron Rudkin, and Luke Sonnet (2020). Voteview: Congressional Roll-Call Votes Database. https://voteview.com/
+
+members <- read_xls("member_info.xls")
+
+
+#Date histogram
+details %>% 
+ggplot(aes(x=date)) + geom_histogram(binwidth=30, colour="white")
+
+#Tokenize and count freq
 bigboyclean %>%
   unnest_tokens(word, text) %>%
   anti_join(stop_words) %>%
   count(word, sort = TRUE)
+
+
+details %>%
+  distinct(member) %>%
+  arrange(-desc(member))
 ```
