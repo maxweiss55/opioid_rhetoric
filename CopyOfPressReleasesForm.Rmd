@@ -21,6 +21,9 @@ library(tidytext)
 library(htmltidy)
 library(jsonlite)
 library(lubridate)
+library(textmineR)
+library(tm)
+library(fuzzyjoin)
 ```
 
 ```{r url scrape setup}
@@ -131,21 +134,30 @@ bigboy1 <- bigboy %>%
   mutate(text = str_remove_all(text, " All content © 1992 - 2020 Vote Smart unless otherwise attributed - Privacy Policy - Legislative demographic data provided by Aristotle International, Inc. Mobile Version \\#\\{text\\} You are about to be redirected to a secure checkout page. Please note: The total order amount will read \\$0.01. This is a card processor fee. Please know that a recurring donation of the amount and frequency that you selected will be processed and initiated tomorrow. You may see a one-time charge of \\$0.01 on your statement. Continue to secure page »")) %>%
   filter(!str_detect(title, "^Letter to") & !str_detect(title, "^Providing for Consideration"))
 
+
+write_csv(bigboyclean, 'rawtext_big.csv')
 write_rds(bigboy1, 'bigboyclean.rds')
+
+
+read_rds('bigboy.rds') %>%
+  filter(row_number() != 1) %>%
+  write_rds('fullscrape.rds')
 
 ```
 
 
-```{r scrape loop and clean}
+```{r texploration}
 
 ##This is the full built dataset
 bigboyclean <- read_rds('bigboyclean.rds')
+bigboyclean %>% distinct() %>% select(-text)
+bigboyclean %>% select(-text) %>% tail(200)
 
 #Processing built dataset
 details <- bigboyclean %>% 
   mutate(office = ifelse(str_detect(member, "Sen\\."), "Senate", "House")) %>%
-  mutate(member = str_remove_all(member, "Sen\\.")) %>%
-  mutate(member = str_remove_all(member, "Rep\\.")) %>%
+  mutate(member = str_remove_all(member, "Sen\\. ")) %>%
+  mutate(member = str_remove_all(member, "Rep\\. ")) %>%
   mutate(member = str_to_lower(member)) %>%
   mutate(date = mdy(date))
   
@@ -159,6 +171,10 @@ members <- read_xls("member_info.xls")
 details %>% 
 ggplot(aes(x=date)) + geom_histogram(binwidth=30, colour="white")
 
+
+stop_words_ed <- stop_words %>%
+  filter(!str_detect(word, 'order'))
+
 #Tokenize and count freq
 bigboyclean %>%
   unnest_tokens(word, text) %>%
@@ -166,7 +182,296 @@ bigboyclean %>%
   count(word, sort = TRUE)
 
 
-details %>%
-  distinct(member) %>%
-  arrange(-desc(member))
+
+# create a document term matrix 
+dtm <- CreateDtm(doc_vec = bigboyclean$text, # character vector of documents
+                 doc_names = bigboyclean$path, # document names
+                 ngram_window = c(1, 2), # minimum and maximum n-gram length
+                 stopword_vec = c(stopwords::stopwords("en"), # stopwords from tm
+                                  stopwords::stopwords(source = "smart")), # this is the default value
+                 lower = TRUE, # lowercase - this is the default value
+                 remove_punctuation = TRUE, # punctuation - this is the default
+                 remove_numbers = TRUE, # numbers - this is the default
+                 verbose = FALSE, # Turn off status bar for this demo
+                 cpus = 2) # default is all available cpus on the system
+
+# construct the matrix of term counts to get the IDF vector
+tf_mat <- TermDocFreq(dtm)
+
+# TF-IDF and cosine similarity
+tfidf <- t(dtm[ , tf_mat$term ]) * tf_mat$idf
+
+tfidf <- t(tfidf)
+
+csim <- tfidf / sqrt(rowSums(tfidf * tfidf))
+
+csim <- csim %*% t(csim)
+
+cdist <- as.dist(1 - csim)
+
+hc <- hclust(cdist, "ward.D")
+
+clustering <- cutree(hc, 10)
+
+#plot(hc, main = "Hierarchical clustering of 10,0000 Press Releases",
+     ylab = "", xlab = "", yaxt = "n")
+
+p_words <- colSums(dtm) / sum(dtm)
+
+cluster_words <- lapply(unique(clustering), function(x){
+  rows <- dtm[ clustering == x , ]
+  
+  # for memory's sake, drop all words that don't appear in the cluster
+  rows <- rows[ , colSums(rows) > 0 ]
+  
+  colSums(rows) / sum(rows) - p_words[ colnames(rows) ]
+})
+
+# create a summary table of the top 5 words defining each cluster
+cluster_summary <- data.frame(cluster = unique(clustering),
+                              size = as.numeric(table(clustering)),
+                              top_words = sapply(cluster_words, function(d){
+                                paste(
+                                  names(d)[ order(d, decreasing = TRUE) ][ 1:5 ], 
+                                  collapse = ", ")
+                              }),
+                              stringsAsFactors = FALSE)
+
+###########
+
+bymem <- bigboyclean %>%
+  group_by(member) %>% 
+  mutate(by_member = paste0(text, collapse = "")) %>%
+  ungroup() %>%
+  distinct(member, .keep_all = T)
+
+# create a document term matrix 
+dtm <- CreateDtm(doc_vec = bymem$by_member, # character vector of documents
+                 doc_names = bymem$member, # document names
+                 ngram_window = c(1, 2), # minimum and maximum n-gram length
+                 stopword_vec = c(stopwords::stopwords("en"), # stopwords from tm
+                                  stopwords::stopwords(source = "smart")), # this is the default value
+                 lower = TRUE, # lowercase - this is the default value
+                 remove_punctuation = TRUE, # punctuation - this is the default
+                 remove_numbers = TRUE, # numbers - this is the default
+                 verbose = FALSE, # Turn off status bar for this demo
+                 cpus = 2) # default is all available cpus on the system
+
+# construct the matrix of term counts to get the IDF vector
+tf_mat <- TermDocFreq(dtm)
+
+# TF-IDF and cosine similarity
+tfidf <- t(dtm[ , tf_mat$term ]) * tf_mat$idf
+
+tfidf <- t(tfidf)
+
+csim <- tfidf / sqrt(rowSums(tfidf * tfidf))
+
+csim <- csim %*% t(csim)
+
+cdist <- as.dist(1 - csim)
+
+hc <- hclust(cdist, "ward.D")
+
+clustering <- cutree(hc, 30)
+
+#plot(hc, main = "Hierarchical clustering of 10,0000 Press Releases",
+#     ylab = "", xlab = "", yaxt = "n")
+
+p_words <- colSums(dtm) / sum(dtm)
+
+cluster_words <- lapply(unique(clustering), function(x){
+  rows <- dtm[ clustering == x , ]
+  
+  # for memory's sake, drop all words that don't appear in the cluster
+  rows <- rows[ , colSums(rows) > 0 ]
+  
+  colSums(rows) / sum(rows) - p_words[ colnames(rows) ]
+})
+
+# create a summary table of the top 5 words defining each cluster
+cluster_summary <- data.frame(cluster = unique(clustering),
+                              size = as.numeric(table(clustering)),
+                              top_words = sapply(cluster_words, function(d){
+                                paste(
+                                  names(d)[ order(d, decreasing = TRUE) ][ 1:20 ], 
+                                  collapse = ", ")
+                              }),
+                              stringsAsFactors = FALSE)
+
+
+cluster_summary
+
+clustering <- cutree(hc, 2)
+
+plot(hc, main = "Hierarchical clustering of members",
+     ylab = "", xlab = "", yaxt = "n", cex = 1)
+
+```
+
+```{r all press releases scraped}
+
+bigboy <- tibble(date = NA_character_, title = NA_character_, member = NA_character_)
+
+for (i in c(4047:8095)){
+  
+  url <- paste0("https://votesmart.org/public-statements/NA/C/?section=officials&s=date&p=", i, "#.Xlc41xNKh0s")
+  
+  read <- url %>%
+  read_html()
+
+page_table <- read %>%
+  html_nodes(xpath='//td') %>%
+  html_text() %>%
+  as_tibble() %>%
+  mutate(index = row_number())
+
+date <- page_table %>%
+  filter((index %% 4) == 1) %>%
+  rename(date = value) %>%
+  select(-index)
+title <- page_table %>%
+  filter((index %% 4) == 2) %>%
+  rename(title = value) %>%
+  select(-index)
+member <- page_table %>%
+  filter((index %% 4) == 3) %>%
+  rename(member = value) %>%
+  select(-index)
+
+layer <- cbind(cbind(date, title), member)
+
+  bigboy <- rbind(bigboy, layer)
+  write_rds(bigboy, 'allstatements.rds')
+  print(i)
+}
+
+write_rds('allstatements4048.rds')
+
+bigboy <- read_rds('allstatements.rds')
+
+bigboy %>% nrow()
+
+
+
+bigboy <- read_rds('allstatements.rds')
+
+bigboy %>% distinct() %>% nrow()
+
+bigboy %>% distinct() %>% count(member)
+
+```
+
+
+```{r member count analysis}
+
+allstatements <- read_rds('allstatements.rds')
+
+allstatements <- allstatements %>%
+  filter(!is.na(date)) %>%
+  distinct() %>%
+  count(member) %>%
+  arrange(desc(n)) %>%
+  rename(total = n)
+#  filter(!str_detect(title, "^Letter to") & !str_detect(title, "^Providing for Consideration") & !str_detect(title, "^Issue Position")) %>%
+#  mutate(first = str_extract(title, '\\w*')) %>%
+#  count(first) %>%
+#  arrange(desc(n))
+  
+  
+opioid <- read_rds('fullscrape.rds')
+
+opioid <- opioid %>%
+  filter(!is.na(date)) %>%
+  distinct() %>%
+  select(-text) %>%
+  count(member) %>%
+  arrange(desc(n)) %>%
+  rename(opioid = n)
+
+
+memcounts <- left_join(allstatements, opioid) %>%
+  mutate(opioid = ifelse(is.na(opioid), 0, opioid)) %>%
+  mutate(prop = opioid / total) %>%
+  arrange(desc(prop))
+
+#  mutate(text = str_remove_all(text, " All content © 1992 - 2020 Vote Smart unless otherwise attributed - Privacy Policy - Legislative demographic data provided by Aristotle International, Inc. Mobile Version \\#\\{text\\} You are about to be redirected to a secure checkout page. Please note: The total order amount will read \\$0.01. This is a card processor fee. Please know that a recurring donation of the amount and frequency that you selected will be processed and initiated tomorrow. You may see a one-time charge of \\$0.01 on your statement. Continue to secure page »"))
+#  filter(!str_detect(title, "^Letter to") & !str_detect(title, "^Providing for Consideration"))
+
+
+###JOINING MEMBER IDS
+
+leg <- read_csv("legislators-current.csv")
+
+leg2 <- leg %>% 
+  mutate(full_name = str_to_lower(full_name)) %>%
+  mutate(full_name = str_replace_all(full_name, 'á', 'a')) %>%
+  mutate(full_name = str_replace_all(full_name, 'é', 'e')) %>%
+  mutate(full_name = str_replace_all(full_name, 'ó', 'o')) %>%
+  mutate(full_name = str_replace_all(full_name, 'í', 'i')) %>%
+  mutate(full_name = str_replace_all(full_name, 'ú', 'u')) %>%
+  mutate(full_name = str_replace_all(full_name, 'ñ', 'n')) %>%
+  mutate(full_name = str_replace_all(full_name, ', jr.', '')) %>%
+  mutate(full_name = str_replace_all(full_name, ' jr.', '')) %>%
+  mutate(full_name = str_replace_all(full_name, ', sr.', '')) %>%
+  mutate(full_name = str_replace_all(full_name, ' sr.', '')) %>%
+  mutate(full_name = str_replace_all(full_name, ', iii', '')) %>%
+  mutate(full_name = str_replace_all(full_name, ' iii', '')) %>%
+  select(last_name, first_name, middle_name, suffix, nickname, full_name) %>%
+  arrange(last_name)
+  
+memcounts2 <- memcounts %>% 
+  mutate(office = ifelse(str_detect(member, "Sen\\."), "Senate", "House")) %>%
+  mutate(member = str_remove_all(member, "Sen\\. ")) %>%
+  mutate(member = str_remove_all(member, "Rep\\. ")) %>%
+  mutate(member = str_to_lower(member)) %>%
+  mutate(member = str_replace_all(member, 'á', 'a')) %>%
+  mutate(member = str_replace_all(member, 'é', 'e')) %>%
+  mutate(member = str_replace_all(member, 'ó', 'o')) %>%
+  mutate(member = str_replace_all(member, 'í', 'i')) %>%
+  mutate(member = str_replace_all(member, 'ú', 'u')) %>%
+  mutate(member = str_replace_all(member, 'ñ', 'n')) %>%
+  mutate(member = str_replace_all(member, '  ', ' ')) %>%
+  mutate(last = str_extract(member, '\\w+$')) %>%
+  arrange(last)
+
+#These two were used to manually join
+write_csv(leg2, "leg.csv")
+write_csv(memcounts2, "memcounts.csv")
+
+#Manually joined key
+key <- read_xlsx('key.xlsx')
+
+memcountskey <- memcounts %>%
+  mutate(office = ifelse(str_detect(member, "Sen\\."), "Senate", "House")) %>%
+  mutate(member = str_remove_all(member, "Sen\\. ")) %>%
+  mutate(member = str_remove_all(member, "Rep\\. ")) %>%
+  mutate(member = str_to_lower(member)) %>%
+  mutate(member = str_replace_all(member, 'á', 'a')) %>%
+  mutate(member = str_replace_all(member, 'é', 'e')) %>%
+  mutate(member = str_replace_all(member, 'ó', 'o')) %>%
+  mutate(member = str_replace_all(member, 'í', 'i')) %>%
+  mutate(member = str_replace_all(member, 'ú', 'u')) %>%
+  mutate(member = str_replace_all(member, 'ñ', 'n')) %>%
+  mutate(member = str_replace_all(member, '  ', ' ')) %>%
+  left_join(key, by = "member")
+
+legkey <- leg %>% 
+  mutate(full_name = str_to_lower(full_name)) %>%
+  mutate(full_name = str_replace_all(full_name, 'á', 'a')) %>%
+  mutate(full_name = str_replace_all(full_name, 'é', 'e')) %>%
+  mutate(full_name = str_replace_all(full_name, 'ó', 'o')) %>%
+  mutate(full_name = str_replace_all(full_name, 'í', 'i')) %>%
+  mutate(full_name = str_replace_all(full_name, 'ú', 'u')) %>%
+  mutate(full_name = str_replace_all(full_name, 'ñ', 'n')) %>%
+  mutate(full_name = str_replace_all(full_name, ', jr.', '')) %>%
+  mutate(full_name = str_replace_all(full_name, ' jr.', '')) %>%
+  mutate(full_name = str_replace_all(full_name, ', sr.', '')) %>%
+  mutate(full_name = str_replace_all(full_name, ' sr.', '')) %>%
+  mutate(full_name = str_replace_all(full_name, ', iii', '')) %>%
+  mutate(full_name = str_replace_all(full_name, ' iii', '')) %>%
+  left_join(key, by = "full_name")
+
+meminfo <- left_join(memcountskey, legkey)
+
 ```
