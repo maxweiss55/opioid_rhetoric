@@ -356,9 +356,10 @@ bigboy %>% nrow()
 
 bigboy <- read_rds('allstatements.rds')
 
-bigboy %>% distinct() %>% nrow()
-
-bigboy %>% distinct() %>% count(member)
+bigboy %>% 
+  filter(row_number() != 1) %>%
+  distinct(date, title, member) %>%
+  write_csv("distinct_scrape.csv")
 
 ```
 
@@ -456,6 +457,8 @@ memcountskey <- memcounts %>%
   mutate(member = str_replace_all(member, '  ', ' ')) %>%
   left_join(key, by = "member")
 
+
+leg <- read_csv("leg.csv")
 legkey <- leg %>% 
   mutate(full_name = str_to_lower(full_name)) %>%
   mutate(full_name = str_replace_all(full_name, 'á', 'a')) %>%
@@ -472,6 +475,187 @@ legkey <- leg %>%
   mutate(full_name = str_replace_all(full_name, ' iii', '')) %>%
   left_join(key, by = "full_name")
 
+
+
 meminfo <- left_join(memcountskey, legkey)
 
+
+
+df <- read_rds('fullscrape.rds') %>%
+  filter(!str_detect(date, "2019") | !str_detect(date, "2020"))%>%
+  select(-text) %>%
+  count(member) %>%
+  arrange(desc(n))
+
+hist(df$n, breaks = 200)
+
+
+df <- read_rds('fullscrape.rds') 
+
+process <- df %>%
+  filter(str_detect(date, "2019") | 
+         str_detect(date, "Jan. 3, 2020") | 
+         str_detect(date, "Jan. 2, 2020") | 
+         str_detect(date, "Jan. 1, 2020")) %>%
+  filter(!str_detect(date, "Jan. 2, 2019") & 
+         !str_detect(date, "Jan. 1, 2019")) %>%
+  mutate(year = NA,
+         month = NA,
+         day = NA) %>%
+  mutate(year = ifelse(str_detect(date, "2019"), "2019", year),
+         year = ifelse(str_detect(date, "2020"), "2020", year)) %>%
+  mutate(month = ifelse(str_detect(date, "Jan"), "1", month),
+         month = ifelse(str_detect(date, "Feb"), "2", month),
+         month = ifelse(str_detect(date, "Mar"), "3", month),
+         month = ifelse(str_detect(date, "Apr"), "4", month),
+         month = ifelse(str_detect(date, "May"), "5", month),
+         month = ifelse(str_detect(date, "Jun"), "6", month),
+         month = ifelse(str_detect(date, "Jul"), "7", month),
+         month = ifelse(str_detect(date, "Aug"), "8", month),
+         month = ifelse(str_detect(date, "Sep"), "9", month),
+         month = ifelse(str_detect(date, "Oct"), "10", month),
+         month = ifelse(str_detect(date, "Nov"), "11", month),
+         month = ifelse(str_detect(date, "Dec"), "12", month)) %>%
+  mutate(day = str_extract(date, "[[:digit:]]+")) %>%
+  mutate(text = str_remove_all(text, " All content © 1992 - 2020 Vote Smart unless otherwise attributed - Privacy Policy - Legislative demographic data provided by Aristotle International, Inc. Mobile Version \\#\\{text\\} You are about to be redirected to a secure checkout page. Please note: The total order amount will read \\$0.01. This is a card processor fee. Please know that a recurring donation of the amount and frequency that you selected will be processed and initiated tomorrow. You may see a one-time charge of \\$0.01 on your statement. Continue to secure page »")) %>%
+  mutate(office = ifelse(str_detect(member, "Sen\\."), "Senate", "House")) %>%
+  mutate(member = str_remove_all(member, "Sen\\. ")) %>%
+  mutate(member = str_remove_all(member, "Rep\\. ")) %>%
+  mutate(member = str_to_lower(member)) %>%
+  mutate(member = str_replace_all(member, 'á', 'a')) %>%
+  mutate(member = str_replace_all(member, 'é', 'e')) %>%
+  mutate(member = str_replace_all(member, 'ó', 'o')) %>%
+  mutate(member = str_replace_all(member, 'í', 'i')) %>%
+  mutate(member = str_replace_all(member, 'ú', 'u')) %>%
+  mutate(member = str_replace_all(member, 'ñ', 'n')) %>%
+  mutate(member = str_replace_all(member, '  ', ' '))
+
+process %>% head()
+  
+```
+
+
+```{r process for zoorob freq}
+
+leg <- read_csv("legislators-current.csv") #member info file
+key <- read_xlsx('key.xlsx') #key between names of member info and processed press release names
+df <- read_rds('fullscrape.rds') #opioid press releases
+
+#Process member info file and join to key
+legkey <- leg %>% 
+  mutate(full_name = str_to_lower(full_name)) %>%
+  mutate(full_name = str_replace_all(full_name, 'á', 'a')) %>%
+  mutate(full_name = str_replace_all(full_name, 'é', 'e')) %>%
+  mutate(full_name = str_replace_all(full_name, 'ó', 'o')) %>%
+  mutate(full_name = str_replace_all(full_name, 'í', 'i')) %>%
+  mutate(full_name = str_replace_all(full_name, 'ú', 'u')) %>%
+  mutate(full_name = str_replace_all(full_name, 'ñ', 'n')) %>%
+  mutate(full_name = str_replace_all(full_name, ', jr.', '')) %>%
+  mutate(full_name = str_replace_all(full_name, ' jr.', '')) %>%
+  mutate(full_name = str_replace_all(full_name, ', sr.', '')) %>%
+  mutate(full_name = str_replace_all(full_name, ' sr.', '')) %>%
+  mutate(full_name = str_replace_all(full_name, ', iii', '')) %>%
+  mutate(full_name = str_replace_all(full_name, ' iii', '')) %>%
+  mutate(full_name = str_replace_all(full_name, "’", "'")) %>%
+  left_join(key, by = "full_name")
+
+#Process opioid dataframe and join to key
+process <- df %>%
+  filter(str_detect(date, "2019") | 
+         str_detect(date, "Jan. 3, 2020") | 
+         str_detect(date, "Jan. 2, 2020") | 
+         str_detect(date, "Jan. 1, 2020")) %>%
+  filter(!str_detect(date, "Jan. 2, 2019") & 
+         !str_detect(date, "Jan. 1, 2019")) %>%
+  mutate(year = NA,
+         month = NA,
+         day = NA) %>%
+  mutate(year = ifelse(str_detect(date, "2019"), "2019", year),
+         year = ifelse(str_detect(date, "2020"), "2020", year)) %>%
+  mutate(month = ifelse(str_detect(date, "Jan"), "1", month),
+         month = ifelse(str_detect(date, "Feb"), "2", month),
+         month = ifelse(str_detect(date, "Mar"), "3", month),
+         month = ifelse(str_detect(date, "Apr"), "4", month),
+         month = ifelse(str_detect(date, "May"), "5", month),
+         month = ifelse(str_detect(date, "Jun"), "6", month),
+         month = ifelse(str_detect(date, "Jul"), "7", month),
+         month = ifelse(str_detect(date, "Aug"), "8", month),
+         month = ifelse(str_detect(date, "Sep"), "9", month),
+         month = ifelse(str_detect(date, "Oct"), "10", month),
+         month = ifelse(str_detect(date, "Nov"), "11", month),
+         month = ifelse(str_detect(date, "Dec"), "12", month)) %>%
+  mutate(day = str_extract(date, "[[:digit:]]+")) %>%
+  mutate(text = str_remove_all(text, " All content © 1992 - 2020 Vote Smart unless otherwise attributed - Privacy Policy - Legislative demographic data provided by Aristotle International, Inc. Mobile Version \\#\\{text\\} You are about to be redirected to a secure checkout page. Please note: The total order amount will read \\$0.01. This is a card processor fee. Please know that a recurring donation of the amount and frequency that you selected will be processed and initiated tomorrow. You may see a one-time charge of \\$0.01 on your statement. Continue to secure page »")) %>%
+  mutate(office = ifelse(str_detect(member, "Sen\\."), "Senate", "House")) %>%
+  mutate(member = str_remove_all(member, "Sen\\. ")) %>%
+  mutate(member = str_remove_all(member, "Rep\\. ")) %>%
+  mutate(member = str_to_lower(member)) %>%
+  mutate(member = str_replace_all(member, 'á', 'a')) %>%
+  mutate(member = str_replace_all(member, 'é', 'e')) %>%
+  mutate(member = str_replace_all(member, 'ó', 'o')) %>%
+  mutate(member = str_replace_all(member, 'í', 'i')) %>%
+  mutate(member = str_replace_all(member, 'ú', 'u')) %>%
+  mutate(member = str_replace_all(member, 'ñ', 'n')) %>%
+  mutate(member = str_replace_all(member, '  ', ' '))  %>%
+  mutate(member = str_replace_all(member, "’", "'")) %>%
+  left_join(key, by = "member") %>%
+  distinct()
+
+legop <- left_join(process, legkey, by = c("member", "full_name"))
+legop %>% write_csv("clean116.csv")
+legop <- read_csv("clean116.csv")
+legop %>% select(-text)
+
+year <- read_rds('allstatements.rds') %>%
+  filter(str_detect(date, "2019") | 
+         str_detect(date, "Jan. 3, 2020") | 
+         str_detect(date, "Jan. 2, 2020") | 
+         str_detect(date, "Jan. 1, 2020")) %>%
+  filter(!str_detect(date, "Jan. 2, 2019") & 
+         !str_detect(date, "Jan. 1, 2019")) %>%
+  mutate(year = NA,
+         month = NA,
+         day = NA) %>%
+  mutate(year = ifelse(str_detect(date, "2019"), "2019", year),
+         year = ifelse(str_detect(date, "2020"), "2020", year)) %>%
+  mutate(month = ifelse(str_detect(date, "Jan"), "1", month),
+         month = ifelse(str_detect(date, "Feb"), "2", month),
+         month = ifelse(str_detect(date, "Mar"), "3", month),
+         month = ifelse(str_detect(date, "Apr"), "4", month),
+         month = ifelse(str_detect(date, "May"), "5", month),
+         month = ifelse(str_detect(date, "Jun"), "6", month),
+         month = ifelse(str_detect(date, "Jul"), "7", month),
+         month = ifelse(str_detect(date, "Aug"), "8", month),
+         month = ifelse(str_detect(date, "Sep"), "9", month),
+         month = ifelse(str_detect(date, "Oct"), "10", month),
+         month = ifelse(str_detect(date, "Nov"), "11", month),
+         month = ifelse(str_detect(date, "Dec"), "12", month)) %>%
+  mutate(day = str_extract(date, "[[:digit:]]+")) %>%
+  mutate(office = ifelse(str_detect(member, "Sen\\."), "Senate", "House")) %>%
+  mutate(member = str_remove_all(member, "Sen\\. ")) %>%
+  mutate(member = str_remove_all(member, "Rep\\. ")) %>%
+  mutate(member = str_to_lower(member)) %>%
+  mutate(member = str_replace_all(member, 'á', 'a')) %>%
+  mutate(member = str_replace_all(member, 'é', 'e')) %>%
+  mutate(member = str_replace_all(member, 'ó', 'o')) %>%
+  mutate(member = str_replace_all(member, 'í', 'i')) %>%
+  mutate(member = str_replace_all(member, 'ú', 'u')) %>%
+  mutate(member = str_replace_all(member, 'ñ', 'n')) %>%
+  mutate(member = str_replace_all(member, '  ', ' '))  %>%
+  mutate(member = str_replace_all(member, "’", "'")) %>%
+  left_join(key, by = "member") %>%
+  distinct()
+
+memcount <- year %>%
+  filter(!is.na(date)) %>%
+  distinct() %>%
+  count(member) %>%
+  arrange(desc(n)) %>%
+  rename(total = n) %>%
+  right_join(key) %>%
+  mutate(total = ifelse(is.na(total), 0, total)) %>%
+  arrange(total)
+
+memcount %>% write_csv("memcount.csv")
+read_csv("memcount.csv")
 ```
