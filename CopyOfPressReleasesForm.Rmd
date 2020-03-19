@@ -24,6 +24,7 @@ library(lubridate)
 library(textmineR)
 library(tm)
 library(fuzzyjoin)
+
 ```
 
 ```{r url scrape setup}
@@ -658,4 +659,258 @@ memcount <- year %>%
 
 memcount %>% write_csv("memcount.csv")
 read_csv("memcount.csv")
+
+
+write_csv(legkey, "legkey.csv")
 ```
+```{r explore sentence levels}
+
+legop <- read_csv("clean116.csv")
+
+df <- legop %>%
+  mutate(text = str_replace_all(text, "(?<=[:upper:])\\.", "")) %>%
+  mutate(text = str_replace_all(text, "(?<=[:alnum:])\\.(?=[:alnum:])", "")) %>%
+  mutate(text = str_replace_all(text, "Sen\\.", "Sen")) %>%
+  mutate(text = str_replace_all(text, "Rep\\.", "Rep")) %>%
+  mutate(text = str_replace_all(text, "Sens\\.", "Sens")) %>%
+  mutate(text = str_replace_all(text, "Reps\\.", "Reps")) %>%
+  mutate(text = str_replace_all(text, "Mrs\\.", "Mrs")) %>%
+  mutate(text = str_replace_all(text, "Mr\\.", "Mr")) %>%
+  mutate(text = str_replace_all(text, "Ms\\.", "Ms")) %>%
+  mutate(text = str_replace_all(text, "Dr\\.", "Dr")) %>%
+  mutate(text = str_replace_all(text, "Pres\\.", "Pres")) %>%
+  mutate(text = str_replace_all(text, "St\\.", "St")) %>%
+  separate_rows(text, sep = "[.?!]", convert = FALSE) %>%
+  filter(str_detect(text, regex("heroin|opioid|opiate|fentanyl|naloxone|synthetic|oxycontin|codone|morphine|codeine|methadone", ignore_case = TRUE))) %>%
+  mutate(sentence_id = row_number())
+
+df2 <- df %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words) %>%
+  count(word, sort = TRUE)
+
+hist(df2$n[df2$n > 10 & df2$n < 1000], breaks = 200)
+
+a <- df %>%
+  mutate(count = str_count(text)) %>%
+  arrange(desc(count)) %>%
+  select(text, count)
+hist(a$count, breaks = 1000)
+
+#Separation if lowercase then $ immediately following
+df3 <- df
+for (row in 1:nrow(df3)) {
+    if (str_detect(df3$text[row], '(?<=[:lower:])(?=\\$)') == TRUE) {
+      df3$text[row] <- str_split(df3$text[row], '(?<=[:lower:])(?=\\$)')
+      df3$text[row] <- paste(df3$text[row][[1]], collapse = ".")
+      print(row)
+    }
+}
+
+df4 <- df3 %>%
+  separate_rows(text, sep = "[.?!]", convert = FALSE) %>%
+  filter(str_detect(text, regex("heroin|opioid|opiate|fentanyl|naloxone|synthetic|oxycontin|codone|morphine|codeine|methadone", ignore_case = TRUE))) %>%
+  mutate(sentence_id = row_number())
+
+df4 %>%
+  mutate(count = str_count(text)) %>%
+  arrange(desc(count)) %>%
+  select(text, count)
+
+df4 %>% filter(str_detect(text, '(?<=\\;)(?=[:graph:])'))
+
+#Separation if lowercase before ;
+df5 <- df4
+for (row in 1:nrow(df5)) {
+    if (str_detect(df5$text[row], '(?<=\\;)(?=[:graph:])') == TRUE) {
+      df5$text[row] <- str_split(df5$text[row], '(?<=\\;)(?=[:graph:])')
+      df5$text[row] <- paste(df5$text[row][[1]], collapse = ".")
+      print(row)
+    }
+}
+
+df6 <- df5 %>%
+  separate_rows(text, sep = "[.?!]", convert = FALSE) %>%
+  filter(str_detect(text, regex("heroin|opioid|opiate|fentanyl|naloxone|synthetic|oxycontin|codone|morphine|codeine|methadone", ignore_case = TRUE))) %>%
+  mutate(sentence_id = row_number())
+
+df6 %>%
+  mutate(count = str_count(text)) %>%
+  arrange(desc(count)) %>%
+  select(text, count)
+
+#split weird bullet point character
+df7 <- df6 %>%
+  mutate(text = str_replace_all(text, "·", "."))  %>%
+  separate_rows(text, sep = "[.?!]", convert = FALSE) %>%
+  mutate(sentence_id = row_number())
+
+
+#split lower then upper immediately after if length greater than 99% of sentences
+ct <- df7 %>%
+  mutate(count = str_count(text)) %>%
+  arrange(desc(count)) %>%
+  select(text, count)
+
+length(ct$count[ct$count > 793]) / length(ct$count)
+
+df8 <- df7
+for (row in 1:nrow(df8)) {
+    if (str_detect(df8$text[row], '(?<=[:lower:])(?=[:upper:])') == TRUE &
+        str_count(df8$text[row]) > 793) {
+      df8$text[row] <- str_split(df8$text[row], '(?<=[:lower:])(?=[:upper:])')
+      df8$text[row] <- paste(df8$text[row][[1]], collapse = ".")
+      print(row)
+    }
+}
+
+df9 <- df8 %>%
+  separate_rows(text, sep = "[.?!]", convert = FALSE) %>%
+  filter(str_detect(text, regex("heroin|opioid|opiate|fentanyl|naloxone|synthetic|oxycontin|codone|morphine|codeine|methadone", ignore_case = TRUE))) %>%
+  mutate(sentence_id = row_number())
+
+cdf <- df9 %>%
+  mutate(count = str_count(text)) %>%
+  arrange(desc(count)) %>%
+  select(text, count)
+
+sent_proc <- df9
+
+sent_proc %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words) %>%
+  count(word, sort = TRUE)
+
+```
+
+
+```{r explore sentence levels}
+
+legop <- read_csv("clean116.csv")
+
+df <- legop %>%
+  mutate(text = str_replace_all(text, "(?<=[:upper:])\\.", "")) %>%
+  mutate(text = str_replace_all(text, "(?<=[:alnum:])\\.(?=[:alnum:])", "")) %>%
+  mutate(text = str_replace_all(text, "Sen\\.", "Sen")) %>%
+  mutate(text = str_replace_all(text, "Rep\\.", "Rep")) %>%
+  mutate(text = str_replace_all(text, "Sens\\.", "Sens")) %>%
+  mutate(text = str_replace_all(text, "Reps\\.", "Reps")) %>%
+  mutate(text = str_replace_all(text, "Mrs\\.", "Mrs")) %>%
+  mutate(text = str_replace_all(text, "Mr\\.", "Mr")) %>%
+  mutate(text = str_replace_all(text, "Ms\\.", "Ms")) %>%
+  mutate(text = str_replace_all(text, "Dr\\.", "Dr")) %>%
+  mutate(text = str_replace_all(text, "Pres\\.", "Pres")) %>%
+  mutate(text = str_replace_all(text, "St\\.", "St")) %>%
+  separate_rows(text, sep = "[.?!]", convert = FALSE) %>%
+  filter(str_detect(text, regex("heroin|opioid|opiate|fentanyl|naloxone|narcan|synthetics|oxycodone|hydrocodone|morphine|codeine|methadone|meperidine|buprenorphine|hydromorphone|benzo", ignore_case = TRUE))) %>%
+  mutate(sentence_id = row_number())
+
+df %>% nrow()
+a <- df %>%
+  mutate(count = str_count(text)) %>%
+  arrange(desc(count)) %>%
+  select(text, count)
+hist(a$count, breaks = 1000)
+
+#Separation if lowercase then $ immediately following
+df3 <- df
+for (row in 1:nrow(df3)) {
+    if (str_detect(df3$text[row], '(?<=[:lower:])(?=\\$)') == TRUE) {
+      df3$text[row] <- str_split(df3$text[row], '(?<=[:lower:])(?=\\$)')
+      df3$text[row] <- paste(df3$text[row][[1]], collapse = ".")
+      print(row)
+    }
+}
+
+#Separation if lowercase before ;
+for (row in 1:nrow(df3)) {
+    if (str_detect(df3$text[row], '(?<=\\;)(?=[:graph:])') == TRUE) {
+      df3$text[row] <- str_split(df3$text[row], '(?<=\\;)(?=[:graph:])')
+      df3$text[row] <- paste(df3$text[row][[1]], collapse = ".")
+      print(row)
+    }
+}
+
+#replaxe weird bullet point character
+df3 <- df3 %>%
+  mutate(text = str_replace_all(text, "·", "."))  %>%
+  separate_rows(text, sep = "[.?!]", convert = FALSE) %>%
+  mutate(sentence_id = row_number())
+
+#split lower then upper immediately after if length greater than 99% of sentences
+ct <- df3 %>%
+  mutate(count = str_count(text)) %>%
+  arrange(desc(count)) %>%
+  select(text, count)
+
+length(ct$count[ct$count > 793]) / length(ct$count)
+
+for (row in 1:nrow(df3)) {
+    if (str_detect(df3$text[row], '(?<=[:lower:])(?=[:upper:])') == TRUE &
+        str_count(df3$text[row]) > 793) {
+      df3$text[row] <- str_split(df3$text[row], '(?<=[:lower:])(?=[:upper:])')
+      df3$text[row] <- paste(df3$text[row][[1]], collapse = ".")
+      print(row)
+    }
+}
+
+df4 <- df3 %>%
+  separate_rows(text, sep = "[.?!]", convert = FALSE) %>%
+  filter(str_detect(text, regex("heroin|opioid|opiate|fentanyl|naloxone|narcan|synthetics|oxycodone|hydrocodone|morphine|codeine|methadone|meperidine|buprenorphine|hydromorphone|benzo", ignore_case = TRUE))) %>%
+  mutate(sentence_id = row_number())
+
+cdf <- df4 %>%
+  mutate(count = str_count(text)) %>%
+  arrange(desc(count)) %>%
+  select(text, count)
+
+hist(cdf$count, breaks = 1000)
+
+sent_proc <- df4
+
+#Words list
+n1 <- sent_proc %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words) %>%
+  count(word, sort = TRUE)
+
+sum(n1$n)
+corp_n1 <- n1 %>% filter(n > 85)
+
+#Bigrams list
+n2 <- sent_proc %>%
+  mutate(text = str_to_lower(text)) %>%
+  unnest_tokens(word, text, token = "ngrams", n = 2) %>%
+  filter(!str_detect(word, paste0("^", paste0(stop_words$word, collapse = "[:space:]|^"), "[:space:]"))) %>%
+  filter(!str_detect(word, paste0("[:space:]", paste0(stop_words$word, collapse = "$|[:space:]"), "$"))) %>%
+  count(word, sort = TRUE)
+
+use_bi <- n2 %>%
+  filter(
+    (!str_detect(word, paste0("^", paste0(corp_n1$word, collapse = "[:space:]|^"), "[:space:]")) & 
+     !str_detect(word, paste0("[:space:]", paste0(corp_n1$word, collapse = "$|[:space:]"), "$"))) |
+     (str_detect(word, paste0("^", paste0(corp_n1$word, collapse = "[:space:]|^"), "[:space:]")) & 
+     str_detect(word, paste0("[:space:]", paste0(corp_n1$word, collapse = "$|[:space:]"), "$"))) 
+    )
+
+corp_n2 <- use_bi %>% filter(n>85)
+
+
+#Trigrams list
+tres <- sent_proc %>%
+  mutate(text = str_to_lower(text)) %>%
+  unnest_tokens(word, text, token = "ngrams", n = 3) %>%
+  filter(!str_detect(word, paste0("^", paste0(stop_words$word, collapse = "[:space:]|^"), "[:space:]"))) %>%
+  filter(!str_detect(word, paste0("[:space:]", paste0(stop_words$word, collapse = "$|[:space:]"), "$"))) %>%
+  count(word, sort = TRUE)
+
+corpus <- tres %>% 
+  filter(word == 'medication assisted treatment') %>%
+  rbind(corp_n2) %>%
+  rbind(corp_n1)
+
+write_csv(corpus, "corpus116.csv")
+write_csv(sent_proc, "sentences.csv")
+
+```
+
