@@ -172,149 +172,13 @@ members <- read_xls("member_info.xls")
 details %>% 
 ggplot(aes(x=date)) + geom_histogram(binwidth=30, colour="white")
 
-
-stop_words_ed <- stop_words %>%
-  filter(!str_detect(word, 'order'))
-
-#Tokenize and count freq
-bigboyclean %>%
-  unnest_tokens(word, text) %>%
-  anti_join(stop_words) %>%
-  count(word, sort = TRUE)
-
-
-
-# create a document term matrix 
-dtm <- CreateDtm(doc_vec = bigboyclean$text, # character vector of documents
-                 doc_names = bigboyclean$path, # document names
-                 ngram_window = c(1, 2), # minimum and maximum n-gram length
-                 stopword_vec = c(stopwords::stopwords("en"), # stopwords from tm
-                                  stopwords::stopwords(source = "smart")), # this is the default value
-                 lower = TRUE, # lowercase - this is the default value
-                 remove_punctuation = TRUE, # punctuation - this is the default
-                 remove_numbers = TRUE, # numbers - this is the default
-                 verbose = FALSE, # Turn off status bar for this demo
-                 cpus = 2) # default is all available cpus on the system
-
-# construct the matrix of term counts to get the IDF vector
-tf_mat <- TermDocFreq(dtm)
-
-# TF-IDF and cosine similarity
-tfidf <- t(dtm[ , tf_mat$term ]) * tf_mat$idf
-
-tfidf <- t(tfidf)
-
-csim <- tfidf / sqrt(rowSums(tfidf * tfidf))
-
-csim <- csim %*% t(csim)
-
-cdist <- as.dist(1 - csim)
-
-hc <- hclust(cdist, "ward.D")
-
-clustering <- cutree(hc, 10)
-
-#plot(hc, main = "Hierarchical clustering of 10,0000 Press Releases",
-     ylab = "", xlab = "", yaxt = "n")
-
-p_words <- colSums(dtm) / sum(dtm)
-
-cluster_words <- lapply(unique(clustering), function(x){
-  rows <- dtm[ clustering == x , ]
-  
-  # for memory's sake, drop all words that don't appear in the cluster
-  rows <- rows[ , colSums(rows) > 0 ]
-  
-  colSums(rows) / sum(rows) - p_words[ colnames(rows) ]
-})
-
-# create a summary table of the top 5 words defining each cluster
-cluster_summary <- data.frame(cluster = unique(clustering),
-                              size = as.numeric(table(clustering)),
-                              top_words = sapply(cluster_words, function(d){
-                                paste(
-                                  names(d)[ order(d, decreasing = TRUE) ][ 1:5 ], 
-                                  collapse = ", ")
-                              }),
-                              stringsAsFactors = FALSE)
-
-###########
-
-bymem <- bigboyclean %>%
-  group_by(member) %>% 
-  mutate(by_member = paste0(text, collapse = "")) %>%
-  ungroup() %>%
-  distinct(member, .keep_all = T)
-
-# create a document term matrix 
-dtm <- CreateDtm(doc_vec = bymem$by_member, # character vector of documents
-                 doc_names = bymem$member, # document names
-                 ngram_window = c(1, 2), # minimum and maximum n-gram length
-                 stopword_vec = c(stopwords::stopwords("en"), # stopwords from tm
-                                  stopwords::stopwords(source = "smart")), # this is the default value
-                 lower = TRUE, # lowercase - this is the default value
-                 remove_punctuation = TRUE, # punctuation - this is the default
-                 remove_numbers = TRUE, # numbers - this is the default
-                 verbose = FALSE, # Turn off status bar for this demo
-                 cpus = 2) # default is all available cpus on the system
-
-# construct the matrix of term counts to get the IDF vector
-tf_mat <- TermDocFreq(dtm)
-
-# TF-IDF and cosine similarity
-tfidf <- t(dtm[ , tf_mat$term ]) * tf_mat$idf
-
-tfidf <- t(tfidf)
-
-csim <- tfidf / sqrt(rowSums(tfidf * tfidf))
-
-csim <- csim %*% t(csim)
-
-cdist <- as.dist(1 - csim)
-
-hc <- hclust(cdist, "ward.D")
-
-clustering <- cutree(hc, 30)
-
-#plot(hc, main = "Hierarchical clustering of 10,0000 Press Releases",
-#     ylab = "", xlab = "", yaxt = "n")
-
-p_words <- colSums(dtm) / sum(dtm)
-
-cluster_words <- lapply(unique(clustering), function(x){
-  rows <- dtm[ clustering == x , ]
-  
-  # for memory's sake, drop all words that don't appear in the cluster
-  rows <- rows[ , colSums(rows) > 0 ]
-  
-  colSums(rows) / sum(rows) - p_words[ colnames(rows) ]
-})
-
-# create a summary table of the top 5 words defining each cluster
-cluster_summary <- data.frame(cluster = unique(clustering),
-                              size = as.numeric(table(clustering)),
-                              top_words = sapply(cluster_words, function(d){
-                                paste(
-                                  names(d)[ order(d, decreasing = TRUE) ][ 1:20 ], 
-                                  collapse = ", ")
-                              }),
-                              stringsAsFactors = FALSE)
-
-
-cluster_summary
-
-clustering <- cutree(hc, 2)
-
-plot(hc, main = "Hierarchical clustering of members",
-     ylab = "", xlab = "", yaxt = "n", cex = 1)
-
 ```
 
 ```{r all press releases scraped}
 
 bigboy <- tibble(date = NA_character_, title = NA_character_, member = NA_character_)
 
-for (i in c(4047:8095)){
+for (i in c(1:8095)){
   
   url <- paste0("https://votesmart.org/public-statements/NA/C/?section=officials&s=date&p=", i, "#.Xlc41xNKh0s")
   
@@ -663,7 +527,7 @@ read_csv("memcount.csv")
 
 write_csv(legkey, "legkey.csv")
 ```
-```{r explore sentence levels}
+```{r build sentences dataset NOT THE CORRECT ONE; USE NEXT CHUNK}
 
 legop <- read_csv("clean116.csv")
 
@@ -784,7 +648,7 @@ sent_proc %>%
 ```
 
 
-```{r explore sentence levels}
+```{r explore sentence levels THIS IS THE ONE ACTUALLY USED}
 
 legop <- read_csv("clean116.csv")
 
@@ -831,7 +695,7 @@ for (row in 1:nrow(df3)) {
     }
 }
 
-#replaxe weird bullet point character
+#replace weird bullet point character
 df3 <- df3 %>%
   mutate(text = str_replace_all(text, "·", "."))  %>%
   separate_rows(text, sep = "[.?!]", convert = FALSE) %>%
@@ -912,5 +776,282 @@ corpus <- tres %>%
 write_csv(corpus, "corpus116.csv")
 write_csv(sent_proc, "sentences.csv")
 
+sent_proc <- read_csv("sentences.csv")
+
+###WHICH MEMBERS ARE STILL IN THIS SAMPLE
+read_csv("clean116.csv") %>% count(member) %>% nrow()
+df %>% count(member) %>% nrow()
+sent_proc %>% count(member) %>% nrow()
+
+a <- read_csv("clean116.csv") %>% count(member)
+b <- sent_proc %>% count(member)
+anti_join(a, b, by = "member")
+
+#These people are no longer in dataset when split by sentences because only PDF available for these releases (all of these people only had one press release)
+read_csv("clean116.csv") %>% filter(member == "abby finkenauer")
+read_csv("clean116.csv") %>% filter(member == "andre carson")
+read_csv("clean116.csv") %>% filter(member == "doris matsui")
+read_csv("clean116.csv") %>% filter(member == "ilhan omar")
+read_csv("clean116.csv") %>% filter(member == "jason crow")
+read_csv("clean116.csv") %>% filter(member == "scott peters")
+read_csv("clean116.csv") %>% filter(member == "sylvia garcia")
+read_csv("clean116.csv") %>% filter(member == "veronica escobar")
+
+#These people are no longer in dataset when split by sentences because their only press release implicitly discussed drug epidemics but never mentioned anything using opioid language explicitly (all of these people only had one press release)
+kev <- read_csv("clean116.csv") %>% filter(member == "kevin cramer")
+read_csv("clean116.csv") %>% filter(member == "marion rounds")
+```
+
+```{r member scoring}
+
+sent_proc <- read_csv("sentences.csv")
+sample(sent_proc$text, 30)
+
+
+#399 grams in corpus; 78 informative ngrams; 38 public health (1), 40 law enforcement (-1)
+dict1 <- read_xlsx("Dictionary_use.xlsx") %>%
+  rename(value = `Final Code`, word = Term) %>%
+  filter(value != 0)
+
+#27 informative bigram, 1 informative trigram; only 10 with values of 1 or -1 for scoring
+grams <- read_xlsx("ngrams_dictionary.xlsx") %>%
+  rename(ngram = `Ngram Code`, value = `Final Code`, word = Term) %>%
+  select(-Notes) %>%
+  filter(ngram != 0)
+
+dict1 <- dict1 %>%
+  mutate(gram = 1) %>%
+  mutate(gram = ifelse(str_detect(word, " "), 2, gram)) %>%
+  mutate(gram = ifelse(str_detect(word, "medication assisted treatment"), 3, gram))
+
+grams <- grams %>%
+  mutate(ngram = value) %>%
+  select(-ngram)
+  
+#SCORING ONLY USING 1-GRAMS
+sent_id <- sent_proc %>%
+  mutate(sentence_id = row_number()) 
+
+sent_scores <- sent_id %>%
+  group_by(sentence_id) %>%
+  unnest_tokens(word, text) %>%
+  inner_join(dict1) %>%
+  ungroup() %>%
+  group_by(sentence_id) %>%
+  summarise(sent_score = mean(value)) %>%
+  right_join(sent_id) %>%
+  mutate(sent_score = ifelse(is.na(sent_score), 0, sent_score))
+
+hist(sent_scores$sent_score)
+
+mem_scores <- sent_scores %>%
+  group_by(member) %>%
+  summarise(mem_score = mean(sent_score)) %>%
+  right_join(sent_id, by = "member") %>%
+  select(-date, -title, -path, -text, -year, -day, -month, -sentence_id) %>%
+  distinct(member, .keep_all = TRUE)
+
+hist(mem_scores$mem_score, breaks = 100)
+
+mem_scores %>% group_by(party) %>% summarise(mean(mem_score))
+
+#3863 included no informative words
+ na <- sent_id %>%
+   group_by(sentence_id) %>%
+   unnest_tokens(word, text) %>%
+   anti_join(stop_words) %>%
+   inner_join(dict) %>%
+   ungroup() %>%
+   group_by(sentence_id) %>%
+   summarise(sent_score = mean(value)) %>%
+   right_join(sent_id) %>%
+   filter(is.na(sent_score)) 
+ 
+ sample(na$text, 50)
+
+```
+
+```{r many member scoring schemes}
+
+#Load full dictionary
+dict <- read_xlsx("Dictionary_ALL.xlsx") %>%
+  rename(value = `Final Value`, word = Term, code = Code) 
+
+#Build dataset with trigrams, bigrams, and unigrams of each sentence
+
+sent_n1 <- sent_id %>%
+  group_by(sentence_id) %>%
+  unnest_tokens(word, text)
+
+sent_n2 <- sent_id %>%
+  group_by(sentence_id) %>%
+  unnest_tokens(word, text, token = "ngrams", n = 2)
+
+sent_n3 <- sent_id %>%
+  group_by(sentence_id) %>%
+  unnest_tokens(word, text, token = "ngrams", n = 3)
+
+sent_gram <- rbind(sent_n3, sent_n2, sent_n1)
+
+#1) Full Dictionary; NA Sentences = 0
+
+dict_all <- dict %>%
+  filter(value != 0)
+
+sent_gram_scores <- sent_gram %>%
+  ungroup() %>%
+  inner_join(dict_all) %>%
+  group_by(sentence_id) %>%
+  summarise(sent_score = mean(value)) %>%
+  right_join(sent_id) %>%
+  mutate(sent_score = ifelse(is.na(sent_score), 0, sent_score))
+
+write_rds(sent_gram_scores, "sentences_full0.rds")
+
+gram_mem_scores <- sent_gram_scores %>%
+  group_by(member) %>%
+  summarise(mem_score = mean(sent_score)) %>%
+  right_join(sent_id, by = "member") %>%
+  select(-date, -title, -path, -text, -year, -day, -month, -sentence_id) %>%
+  distinct(member, .keep_all = TRUE)
+
+write_rds(gram_mem_scores, "members_full0.rds")
+
+
+#2) Full Dictionary; NA Sentences = Removed
+
+dict_all <- dict %>%
+  filter(value != 0)
+
+sent_gram_scores <- sent_gram %>%
+  ungroup() %>%
+  inner_join(dict_all) %>%
+  group_by(sentence_id) %>%
+  summarise(sent_score = mean(value)) %>%
+  right_join(sent_id) %>%
+  filter(!is.na(sent_score))
+
+write_rds(sent_gram_scores, "sentences_fullNA.rds")
+
+gram_mem_scores <- sent_gram_scores %>%
+  group_by(member) %>%
+  summarise(mem_score = mean(sent_score)) %>%
+  right_join(sent_id, by = "member") %>%
+  filter(!is.na(mem_score)) %>%
+  select(-date, -title, -path, -text, -year, -day, -month, -sentence_id) %>%
+  distinct(member, .keep_all = TRUE)
+
+write_rds(gram_mem_scores, "members_fullNA.rds")
+
+
+#3) Public Health Dictionary
+
+dict_health <- dict %>%
+  filter(code == 1)
+  
+sent_gram_scores <- sent_gram %>%
+  ungroup() %>%
+  inner_join(dict_health) %>%
+  group_by(sentence_id) %>%
+  summarise(sent_score = mean(code)) %>%
+  right_join(sent_id) %>%
+  mutate(sent_score = ifelse(is.na(sent_score), 0, sent_score))
+
+write_rds(sent_gram_scores, "sentences_health.rds")
+
+gram_mem_scores <- sent_gram_scores %>%
+  group_by(member) %>%
+  summarise(mem_score = mean(sent_score)) %>%
+  right_join(sent_id, by = "member") %>%
+  filter(!is.na(mem_score)) %>%
+  select(-date, -title, -path, -text, -year, -day, -month, -sentence_id) %>%
+  distinct(member, .keep_all = TRUE)
+
+write_rds(gram_mem_scores, "members_health.rds")
+
+
+#4) Law Enforcement Dictionary
+
+dict_law <- dict %>%
+  filter(code == -1)
+  
+sent_gram_scores <- sent_gram %>%
+  ungroup() %>%
+  inner_join(dict_law) %>%
+  group_by(sentence_id) %>%
+  summarise(sent_score = mean(code)) %>%
+  right_join(sent_id) %>%
+  mutate(sent_score = ifelse(is.na(sent_score), 0, sent_score))
+
+write_rds(sent_gram_scores, "sentences_law.rds")
+
+gram_mem_scores <- sent_gram_scores %>%
+  group_by(member) %>%
+  summarise(mem_score = mean(sent_score)) %>%
+  right_join(sent_id, by = "member") %>%
+  filter(!is.na(mem_score)) %>%
+  select(-date, -title, -path, -text, -year, -day, -month, -sentence_id) %>%
+  distinct(member, .keep_all = TRUE)
+
+write_rds(gram_mem_scores, "members_law.rds")
+
+
+#5) Only Unigrams; NA Sentences = 0
+
+dict_all <- dict %>%
+  filter(value != 0)
+  
+sent_gram_scores <- sent_n1 %>%
+  ungroup() %>%
+  inner_join(dict_all) %>%
+  group_by(sentence_id) %>%
+  summarise(sent_score = mean(value)) %>%
+  right_join(sent_id) %>%
+  mutate(sent_score = ifelse(is.na(sent_score), 0, sent_score))
+
+write_rds(sent_gram_scores, "sentences_full0uni.rds")
+
+gram_mem_scores <- sent_gram_scores %>%
+  group_by(member) %>%
+  summarise(mem_score = mean(sent_score)) %>%
+  right_join(sent_id, by = "member") %>%
+  select(-date, -title, -path, -text, -year, -day, -month, -sentence_id) %>%
+  distinct(member, .keep_all = TRUE)
+
+write_rds(gram_mem_scores, "members_full0uni.rds")
+
+
+#6) Only Unigrams; NA Sentences = Removed
+
+dict_all <- dict %>%
+  filter(value != 0)
+  
+sent_gram_scores <- sent_n1 %>%
+  ungroup() %>%
+  inner_join(dict_all) %>%
+  group_by(sentence_id) %>%
+  summarise(sent_score = mean(value)) %>%
+  right_join(sent_id) %>%
+  filter(!is.na(sent_score))
+
+write_rds(sent_gram_scores, "sentences_fullNAuni.rds")
+
+gram_mem_scores <- sent_gram_scores %>%
+  group_by(member) %>%
+  summarise(mem_score = mean(sent_score)) %>%
+  right_join(sent_id, by = "member") %>%
+  filter(!is.na(mem_score)) %>%
+  select(-date, -title, -path, -text, -year, -day, -month, -sentence_id) %>%
+  distinct(member, .keep_all = TRUE)
+
+write_rds(gram_mem_scores, "members_fullNAuni.rds")
+
+
+#Have a party
+hist(sent_gram_scores$sent_score)
+hist(gram_mem_scores$mem_score)
+gram_mem_scores %>% group_by(party) %>% summarise(mean(mem_score))
+
+mean(gram_mem_scores$mem_score)
 ```
 
