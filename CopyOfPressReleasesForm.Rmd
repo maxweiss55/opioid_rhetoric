@@ -1054,4 +1054,82 @@ gram_mem_scores %>% group_by(party) %>% summarise(mean(mem_score))
 
 mean(gram_mem_scores$mem_score)
 ```
+```{r key word count exploration}
 
+#Talking about foreigners
+dict_foreign <- read_xlsx("dict_foreign.xlsx") %>%
+  filter(foreign == 1) %>%
+  rename(code = foreign)
+  
+sent_gram_scores <- sent_gram %>%
+  ungroup() %>%
+  inner_join(dict_foreign) %>%
+  group_by(sentence_id) %>%
+  summarise(sent_score = mean(code)) %>%
+  right_join(sent_id) %>%
+  mutate(sent_score = ifelse(is.na(sent_score), 0, sent_score))
+
+write_rds(sent_gram_scores, "sentences_foreign.rds")
+
+gram_mem_scores <- sent_gram_scores %>%
+  group_by(member) %>%
+  summarise(mem_score = mean(sent_score)) %>%
+  right_join(sent_id, by = "member") %>%
+  filter(!is.na(mem_score)) %>%
+  select(-date, -title, -path, -text, -year, -day, -month, -sentence_id) %>%
+  distinct(member, .keep_all = TRUE)
+
+write_rds(gram_mem_scores, "members_foreign.rds")
+
+
+#Talking about MAT
+dict_foreign <- read_xlsx("dict_MAT.xlsx") %>%
+  filter(MAT == 1) %>%
+  rename(code = MAT)
+  
+sent_gram_scores <- sent_gram %>%
+  ungroup() %>%
+  inner_join(dict_foreign) %>%
+  group_by(sentence_id) %>%
+  summarise(sent_score = mean(code)) %>%
+  right_join(sent_id) %>%
+  mutate(sent_score = ifelse(is.na(sent_score), 0, sent_score))
+
+write_rds(sent_gram_scores, "sentences_MAT.rds")
+
+gram_mem_scores <- sent_gram_scores %>%
+  group_by(member) %>%
+  summarise(mem_score = mean(sent_score)) %>%
+  right_join(sent_id, by = "member") %>%
+  filter(!is.na(mem_score)) %>%
+  select(-date, -title, -path, -text, -year, -day, -month, -sentence_id) %>%
+  distinct(member, .keep_all = TRUE)
+
+write_rds(gram_mem_scores, "members_MAT.rds")
+
+gram_mem_scores %>% arrange(desc(mem_score))
+
+
+#Talking about MAT
+sent_gram_scores <- sent_gram %>%
+  ungroup() %>%
+  filter(word %in% c("addiction", "misuse", "abuse", "disorder", "disease")) %>%
+  group_by(sentence_id) %>%
+  count(word) %>%
+  spread(word, n) %>%
+  right_join(sent_id) %>%
+  mutate(abuse = ifelse(is.na(abuse), 0, abuse),
+         misuse = ifelse(is.na(misuse), 0, misuse),
+         disorder = ifelse(is.na(disorder), 0, disorder),
+         addiction = ifelse(is.na(addiction), 0, addiction),
+         disease = ifelse(is.na(disease), 0, disease))
+
+write_rds(sent_gram_scores, "sentences_disorder.rds")
+
+#Have a party
+hist(sent_gram_scores$sent_score)
+hist(gram_mem_scores$mem_score)
+gram_mem_scores %>% group_by(party) %>% summarise(mean(mem_score))
+
+mean(gram_mem_scores$mem_score)
+```
