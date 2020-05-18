@@ -24,6 +24,7 @@ library(lubridate)
 library(textmineR)
 library(tm)
 library(fuzzyjoin)
+library(reshape2)
 
 ```
 
@@ -527,13 +528,14 @@ read_csv("memcount.csv")
 
 write_csv(legkey, "legkey.csv")
 ```
+
 ```{r build sentences dataset NOT THE CORRECT ONE; USE NEXT CHUNK}
 
 legop <- read_csv("clean116.csv")
 
 df <- legop %>%
-  mutate(text = str_replace_all(text, "(?<=[:upper:])\\.", "")) %>%
-  mutate(text = str_replace_all(text, "(?<=[:alnum:])\\.(?=[:alnum:])", "")) %>%
+  mutate(text = str_replace_all(text, "(?<=[:upper:])\\.", "")) %>% #this did not actually change anything in the opioid sentences
+  mutate(text = str_replace_all(text, "(?<=[:alnum:])\\.(?=[:alnum:])", "")) %>% #neither did this
   mutate(text = str_replace_all(text, "Sen\\.", "Sen")) %>%
   mutate(text = str_replace_all(text, "Rep\\.", "Rep")) %>%
   mutate(text = str_replace_all(text, "Sens\\.", "Sens")) %>%
@@ -545,8 +547,8 @@ df <- legop %>%
   mutate(text = str_replace_all(text, "Pres\\.", "Pres")) %>%
   mutate(text = str_replace_all(text, "St\\.", "St")) %>%
   separate_rows(text, sep = "[.?!]", convert = FALSE) %>%
-  filter(str_detect(text, regex("heroin|opioid|opiate|fentanyl|naloxone|synthetic|oxycontin|codone|morphine|codeine|methadone", ignore_case = TRUE))) %>%
-  mutate(sentence_id = row_number())
+  filter(str_detect(text, regex("heroin|opioid|opiate|fentanyl|naloxone|oxycontin|codone|synthetic|morphine|codeine|methadone", ignore_case = TRUE))) %>% #Only 4 of the resulting sentences had a version of synthetic that was not about drugs
+  mutate(sentence_id = row_number()) 
 
 df2 <- df %>%
   unnest_tokens(word, text) %>%
@@ -800,6 +802,8 @@ read_csv("clean116.csv") %>% filter(member == "veronica escobar")
 #These people are no longer in dataset when split by sentences because their only press release implicitly discussed drug epidemics but never mentioned anything using opioid language explicitly (all of these people only had one press release)
 kev <- read_csv("clean116.csv") %>% filter(member == "kevin cramer")
 read_csv("clean116.csv") %>% filter(member == "marion rounds")
+
+
 ```
 
 ```{r member scoring}
@@ -875,7 +879,9 @@ mem_scores %>% group_by(party) %>% summarise(mean(mem_score))
 
 #Load full dictionary
 dict <- read_xlsx("Dictionary_ALL.xlsx") %>%
-  rename(value = `Final Value`, word = Term, code = Code) 
+  rename(value = `Final Value`, word = Term, code = Code) %>%
+  #GOTTA DO THIS STEP
+  filter(code != 0)
 
 #Build dataset with trigrams, bigrams, and unigrams of each sentence
 
@@ -1054,6 +1060,9 @@ gram_mem_scores %>% group_by(party) %>% summarise(mean(mem_score))
 
 mean(gram_mem_scores$mem_score)
 ```
+
+
+
 ```{r key word count exploration}
 
 #Talking about foreigners
@@ -1071,7 +1080,7 @@ sent_gram_scores <- sent_gram %>%
 
 write_rds(sent_gram_scores, "sentences_foreign.rds")
 
-gram_mem_scores <- sent_gram_scores %>%
+ gram_mem_scores <- sent_gram_scores %>%
   group_by(member) %>%
   summarise(mem_score = mean(sent_score)) %>%
   right_join(sent_id, by = "member") %>%
@@ -1132,4 +1141,475 @@ hist(gram_mem_scores$mem_score)
 gram_mem_scores %>% group_by(party) %>% summarise(mean(mem_score))
 
 mean(gram_mem_scores$mem_score)
+```
+
+
+```{r fixed scoring}
+
+#Load full dictionary
+dict_all <- read_xlsx("Dictionary_ALL.xlsx") %>%
+  rename(value = `Final Value`, word = Term, code = Code) %>%
+  select(-value) %>%
+#Remove uninformative ngrams
+  filter(code != 0)
+
+#Load in sentences dataset
+sent_proc <- read_csv("sentences.csv")
+#Add sentence id numbers
+sent_id <- sent_proc %>%
+  mutate(sentence_id = row_number()) 
+
+#three has all of the trigrams from a sentence that matched one of the trigrams in the dictionary
+three <- sent_id %>%
+  unnest_tokens(word, text, token = "ngrams", n = 3) %>%
+  inner_join(dict_all)
+
+#Build sentaur3, which has the same columns as sent_id but just one row of NAs
+sentaur3 <- sent_id
+sentaur3[nrow(sentaur3)+1,] <- NA
+sentaur3 <- sentaur3 %>% filter(is.na(sentence_id))
+#Loop through each sentence id
+for (i in 1:nrow(sent_id)){
+  #Filter matched trigrams to only those for the given sentence id
+  a <- three %>%
+    filter(sentence_id == i)
+  #Filter sentences to only that of the given sentence id
+  b <- sent_id %>%
+    filter(sentence_id == i) %>%
+    #remove everything that is not a space or letter
+    mutate(text = str_replace_all(text, '[^[:alpha:][:space:]]', " ")) %>% 
+    mutate(text = str_to_lower(text)) #text to lowercase
+  #IF there are any trigram matches, then...
+  if (nrow(a) > 0){
+    #print the sent_id number
+    print(i)
+    #loop through each of the trigram matches
+    for(j in 1:nrow(a)){
+    #Print trigram match
+    print(a[j,]$word)
+    #replace the trigram match from the given text with the word TRIGRAM
+    b <- b %>%
+      mutate(text = str_replace(text, a[j,]$word, "trigram"))
+    }
+    #Add to the running dataframe
+    sentaur3 <- rbind(sentaur3, b)
+  }
+}
+
+#Bind the sentences where matched trigrams replaced with TRIGRAM to the original sentence set
+sent_id3 <- rbind(sentaur3, sent_id) %>%
+  #Only keep the first of a duplicate sentence_id, this keeps only the TRIGRAM replaced sentences if duplicate because these come first
+  distinct(sentence_id, .keep_all = TRUE) %>%
+  #Remove the blank row used to start table
+  filter(!is.na(sentence_id))
+
+#two has all of the bigrams from a sentence that matched one of the bigrams in the dictionary
+two <- sent_id3 %>%
+  unnest_tokens(word, text, token = "ngrams", n = 2) %>%
+  inner_join(dict_all) 
+
+#Build sentaur2, which has the same columns as sent_id3 (and sent_id) but just one row of NAs
+sentaur2 <- sent_id3
+sentaur2[nrow(sentaur2)+1,] <- NA
+sentaur2 <- sentaur2 %>% filter(is.na(sentence_id))
+#Loop through each sentence id
+for (i in 1:nrow(sent_id3)){
+  #Filter matched bigrams to only those for the given sentence id
+  a <- two %>%
+    filter(sentence_id == i)
+  #Filter sentences to only that of the given sentence id
+  b <- sent_id3 %>%
+    filter(sentence_id == i) %>%
+    #remove everything that is not a space or letter
+    mutate(text = str_replace_all(text, '[^[:alpha:][:space:]]', " ")) %>%
+    mutate(text = str_to_lower(text)) #text to lowercase
+  #IF there are any bigram matches, then...
+  if (nrow(a) > 0){
+    #print the sent_id number
+    print(i)
+    #loop through each of the bigram matches
+    for(j in 1:nrow(a)){
+    #Print bigram match
+    print(a[j,]$word)
+    #remove the bigram match from the given text with the word BIGRAM
+    b <- b %>%
+      mutate(text = str_replace(text, a[j,]$word, "bigram"))
+    }
+    #Add to the running dataframe
+    sentaur2 <- rbind(sentaur2, b)
+  }
+}
+
+#Bind the sentences where matched bigrams replaced with BIGRAM to the set of distinct sentences that have TRIGRAM replacements where relevant
+sent_id2 <- rbind(sentaur2, sent_id3) %>%
+  #Only keep the first of a duplicate sentence_id, this keeps only the TRIGRAM replaced sentences if duplicate because these come first
+  distinct(sentence_id, .keep_all = TRUE) %>%
+  #Remove the blank row used to start table
+  filter(!is.na(sentence_id))
+
+#one has all of the unigrams from a sentence that matched one of the unigrams in the dictionary
+one <- sent_id2 %>%
+  unnest_tokens(word, text) %>%
+  inner_join(dict_all)
+
+#Sentence and Member Scoring -  sentences with no informative terms (NA) represented as arithmetic 0
+#Score sentences
+sent_gram_scores <- rbind(three, two, one) %>%
+  #Group by sentence
+  group_by(sentence_id) %>%
+  #Take the mean of the code from each ngram in the sentence
+  summarise(sent_score = mean(code)) %>%
+  #Retrieve all original sentences and join to them sentence scores
+  right_join(sent_id) %>%
+  #Replace NA scores with 0
+  mutate(sent_score = ifelse(is.na(sent_score), 0, sent_score))
+
+write_rds(sent_gram_scores, "sentences_full0.rds")
+
+#Score members
+gram_mem_scores <- sent_gram_scores %>%
+  #Group by member
+  group_by(member) %>%
+  #Take the mean of each member
+  summarise(mem_score = mean(sent_score)) %>%
+  #Retrieve all original sentences and join to them MEMBER scores (this is only to retrieve the member information, we end up with many redundant rows which will be deleted)
+  right_join(sent_id, by = "member") %>%
+  #Remove members not represented in the sentence scoring
+  filter(!is.na(mem_score)) %>%
+  #Remove unimportant columns
+  select(-date, -title, -path, -text, -year, -day, -month, -sentence_id) %>%
+  #Only keep one of the duplicated rows for each member
+  distinct(member, .keep_all = TRUE)
+
+write_rds(gram_mem_scores, "members_full0.rds")
+
+hist(sent_gram_scores$sent_score)
+hist(gram_mem_scores$mem_score)
+gram_mem_scores %>% group_by(party) %>% summarise(mean(mem_score))
+
+#Sentence and Member Scoring -  sentences with no informative terms (NA) removed
+#Score sentences
+sent_gram_scores <- rbind(three, two, one) %>%
+  #Group by sentence
+  group_by(sentence_id) %>%
+  #Take the mean of the code from each ngram in the sentence
+  summarise(sent_score = mean(code)) %>%
+  #Retrieve all original sentences and join to them scores where relevant (i.e. not NA)
+  right_join(sent_id) %>%
+  #Remove all scores of NA
+  filter(!is.na(sent_score))
+
+write_rds(sent_gram_scores, "sentences_fullNA.rds")
+
+#Score members
+gram_mem_scores <- sent_gram_scores %>%
+  #Group by member
+  group_by(member) %>%
+  #Take the mean of each member
+  summarise(mem_score = mean(sent_score)) %>%
+  #Retrieve all original sentences and join to them MEMBER scores (this is only to retrieve the member information, we end up with many redundant rows which will be deleted)
+  right_join(sent_id, by = "member") %>%
+  #Remove members not represented in the sentence scoring
+  filter(!is.na(mem_score)) %>%
+  #Remove unimportant columns
+  select(-date, -title, -path, -text, -year, -day, -month, -sentence_id) %>%
+  #Only keep one of the duplicated rows for each member
+  distinct(member, .keep_all = TRUE)
+
+write_rds(gram_mem_scores, "members_fullNA.rds")
+
+hist(sent_gram_scores$sent_score)
+hist(gram_mem_scores$mem_score)
+gram_mem_scores %>% group_by(party) %>% summarise(mean(mem_score))
+z <- read_rds("sentences_fullNA.rds")
+
+y <- z %>% filter(sentence_id == 9123)
+rbind(three, two, one) %>% filter(sentence_id == 9123)
+y$text
+
+sent_id3 %>% filter(sentence_id == 8993)
+```
+
+```{r working scoring but for press releases}
+
+#Load full dictionary
+dict_all <- read_xlsx("Dictionary_ALL.xlsx") %>%
+  rename(value = `Final Value`, word = Term, code = Code) %>%
+  select(-value) %>%
+#Remove uninformative ngrams
+  filter(code != 0)
+
+#Load in press releases dataset
+legop <- read_csv("clean116.csv")
+sent_proc <- legop
+#Add sentence id numbers
+sent_id <- sent_proc %>%
+  mutate(sentence_id = row_number()) 
+
+#three has all of the trigrams from a sentence that matched one of the trigrams in the dictionary
+three <- sent_id %>%
+  unnest_tokens(word, text, token = "ngrams", n = 3) %>%
+  inner_join(dict_all)
+
+#Build sentaur3, which has the same columns as sent_id but just one row of NAs
+sentaur3 <- sent_id
+sentaur3[nrow(sentaur3)+1,] <- NA
+sentaur3 <- sentaur3 %>% filter(is.na(sentence_id))
+#Loop through each sentence id
+for (i in 1:nrow(sent_id)){
+  #Filter matched trigrams to only those for the given sentence id
+  a <- three %>%
+    filter(sentence_id == i)
+  #Filter sentences to only that of the given sentence id
+  b <- sent_id %>%
+    filter(sentence_id == i) %>%
+    #remove everything that is not a space or letter
+    mutate(text = str_replace_all(text, '[^[:alpha:][:space:]]', " ")) %>% 
+    mutate(text = str_to_lower(text)) #text to lowercase
+  #IF there are any trigram matches, then...
+  if (nrow(a) > 0){
+    #print the sent_id number
+    print(i)
+    #loop through each of the trigram matches
+    for(j in 1:nrow(a)){
+    #Print trigram match
+    print(a[j,]$word)
+    #replace the trigram match from the given text with the word TRIGRAM
+    b <- b %>%
+      mutate(text = str_replace(text, a[j,]$word, "trigram"))
+    }
+    #Add to the running dataframe
+    sentaur3 <- rbind(sentaur3, b)
+  }
+}
+
+#Bind the sentences where matched trigrams replaced with TRIGRAM to the original sentence set
+sent_id3 <- rbind(sentaur3, sent_id) %>%
+  #Only keep the first of a duplicate sentence_id, this keeps only the TRIGRAM replaced sentences if duplicate because these come first
+  distinct(sentence_id, .keep_all = TRUE) %>%
+  #Remove the blank row used to start table
+  filter(!is.na(sentence_id))
+
+#two has all of the bigrams from a sentence that matched one of the bigrams in the dictionary
+two <- sent_id3 %>%
+  unnest_tokens(word, text, token = "ngrams", n = 2) %>%
+  inner_join(dict_all) 
+
+#Build sentaur2, which has the same columns as sent_id3 (and sent_id) but just one row of NAs
+sentaur2 <- sent_id3
+sentaur2[nrow(sentaur2)+1,] <- NA
+sentaur2 <- sentaur2 %>% filter(is.na(sentence_id))
+#Loop through each sentence id
+for (i in 1:nrow(sent_id3)){
+  #Filter matched bigrams to only those for the given sentence id
+  a <- two %>%
+    filter(sentence_id == i)
+  #Filter sentences to only that of the given sentence id
+  b <- sent_id3 %>%
+    filter(sentence_id == i) %>%
+    #remove everything that is not a space or letter
+    mutate(text = str_replace_all(text, '[^[:alpha:][:space:]]', " ")) %>%
+    mutate(text = str_to_lower(text)) #text to lowercase
+  #IF there are any bigram matches, then...
+  if (nrow(a) > 0){
+    #print the sent_id number
+    print(i)
+    #loop through each of the bigram matches
+    for(j in 1:nrow(a)){
+    #Print bigram match
+    print(a[j,]$word)
+    #remove the bigram match from the given text with the word BIGRAM
+    b <- b %>%
+      mutate(text = str_replace(text, a[j,]$word, "bigram"))
+    }
+    #Add to the running dataframe
+    sentaur2 <- rbind(sentaur2, b)
+  }
+}
+
+#Bind the sentences where matched bigrams replaced with BIGRAM to the set of distinct sentences that have TRIGRAM replacements where relevant
+sent_id2 <- rbind(sentaur2, sent_id3) %>%
+  #Only keep the first of a duplicate sentence_id, this keeps only the TRIGRAM replaced sentences if duplicate because these come first
+  distinct(sentence_id, .keep_all = TRUE) %>%
+  #Remove the blank row used to start table
+  filter(!is.na(sentence_id))
+
+#one has all of the unigrams from a sentence that matched one of the unigrams in the dictionary
+one <- sent_id2 %>%
+  unnest_tokens(word, text) %>%
+  inner_join(dict_all)
+
+#Sentence and Member Scoring -  sentences with no informative terms (NA) represented as arithmetic 0
+#Score sentences
+sent_gram_scores <- rbind(three, two, one) %>%
+  #Group by sentence
+  group_by(sentence_id) %>%
+  #Take the mean of the code from each ngram in the sentence
+  summarise(sent_score = mean(code)) %>%
+  #Retrieve all original sentences and join to them sentence scores
+  right_join(sent_id) %>%
+  #Replace NA scores with 0
+  mutate(sent_score = ifelse(is.na(sent_score), 0, sent_score))
+
+write_rds(sent_gram_scores, "PR_full0.rds")
+
+#Score members
+gram_mem_scores <- sent_gram_scores %>%
+  #Group by member
+  group_by(member) %>%
+  #Take the mean of each member
+  summarise(mem_score = mean(sent_score)) %>%
+  #Retrieve all original sentences and join to them MEMBER scores (this is only to retrieve the member information, we end up with many redundant rows which will be deleted)
+  right_join(sent_id, by = "member") %>%
+  #Remove members not represented in the sentence scoring
+  filter(!is.na(mem_score)) %>%
+  #Remove unimportant columns
+  select(-date, -title, -path, -text, -year, -day, -month, -sentence_id) %>%
+  #Only keep one of the duplicated rows for each member
+  distinct(member, .keep_all = TRUE)
+
+write_rds(gram_mem_scores, "PRmembers_full0.rds")
+
+hist(sent_gram_scores$sent_score)
+hist(gram_mem_scores$mem_score)
+gram_mem_scores %>% group_by(party) %>% summarise(mean(mem_score))
+
+#Sentence and Member Scoring -  sentences with no informative terms (NA) removed
+#Score sentences
+sent_gram_scores <- rbind(three, two, one) %>%
+  #Group by sentence
+  group_by(sentence_id) %>%
+  #Take the mean of the code from each ngram in the sentence
+  summarise(sent_score = mean(code)) %>%
+  #Retrieve all original sentences and join to them scores where relevant (i.e. not NA)
+  right_join(sent_id) %>%
+  #Remove all scores of NA
+  filter(!is.na(sent_score))
+
+write_rds(sent_gram_scores, "PR_fullNA.rds")
+
+#Score members
+gram_mem_scores <- sent_gram_scores %>%
+  #Group by member
+  group_by(member) %>%
+  #Take the mean of each member
+  summarise(mem_score = mean(sent_score)) %>%
+  #Retrieve all original sentences and join to them MEMBER scores (this is only to retrieve the member information, we end up with many redundant rows which will be deleted)
+  right_join(sent_id, by = "member") %>%
+  #Remove members not represented in the sentence scoring
+  filter(!is.na(mem_score)) %>%
+  #Remove unimportant columns
+  select(-date, -title, -path, -text, -year, -day, -month, -sentence_id) %>%
+  #Only keep one of the duplicated rows for each member
+  distinct(member, .keep_all = TRUE)
+
+write_rds(gram_mem_scores, "PRmembers_fullNA.rds")
+
+hist(sent_gram_scores$sent_score)
+hist(gram_mem_scores$mem_score)
+gram_mem_scores %>% group_by(party) %>% summarise(mean(mem_score))
+ 
+
+```
+
+```{r full scrapes freqs}
+
+allstatements <- read_rds('allstatements.rds') %>%
+  filter(!is.na(member)) %>%
+  filter(date != "Feb. 18, 2020" &
+         date != "Feb. 19, 2020" &
+         date != "Feb. 20, 2020" &
+         date != "Feb. 21, 2020" & 
+         date != "Feb. 22, 2020" &
+         date != "Feb. 23, 2020" &
+         date != "Feb. 24, 2020" &           
+         date != "Feb. 25, 2020" &           
+         date != "Feb. 26, 2020") #start on feb 17        
+                      
+allstatements1 <- allstatements %>%
+  count(member) %>%
+  arrange(desc(n)) %>%
+  rename(total = n)
+  
+opioid <- read_rds('fullscrape.rds')
+
+opioid1 <- opioid %>%
+  filter(!is.na(member)) %>%
+  filter(date != "Feb. 18, 2020") %>% #start on feb 17
+  count(member) %>%
+  arrange(desc(n)) %>%
+  rename(opioid = n)
+
+memcounts <- left_join(allstatements1, opioid1) %>%
+  mutate(opioid = ifelse(is.na(opioid), 0, opioid)) %>%
+  mutate(prop = opioid / total) %>%
+  arrange(desc(prop))
+
+legkey <- read_csv("legkey.csv")
+
+memcounts_indexed <- memcounts %>%
+  mutate(member = str_remove_all(member, "Sen\\. ")) %>%
+  mutate(member = str_remove_all(member, "Rep\\. ")) %>%
+  mutate(member = str_to_lower(member)) %>%
+  mutate(member = str_replace_all(member, 'á', 'a')) %>%
+  mutate(member = str_replace_all(member, 'é', 'e')) %>%
+  mutate(member = str_replace_all(member, 'ó', 'o')) %>%
+  mutate(member = str_replace_all(member, 'í', 'i')) %>%
+  mutate(member = str_replace_all(member, 'ú', 'u')) %>%
+  mutate(member = str_replace_all(member, 'ñ', 'n')) %>%
+  mutate(member = str_replace_all(member, '  ', ' '))  %>%
+  mutate(member = str_replace_all(member, "’", "'")) %>%
+  left_join(legkey, by = "member")
+
+write_rds(memcounts_indexed, "freq_allvotesmart.rds")
+
+
+read_rds('allstatements.rds') %>%
+  filter(!is.na(member)) %>%
+  mutate(member = str_remove_all(member, "Sen\\. ")) %>%
+  mutate(member = str_remove_all(member, "Rep\\. ")) %>%
+  mutate(member = str_to_lower(member)) %>%
+  mutate(member = str_replace_all(member, 'á', 'a')) %>%
+  mutate(member = str_replace_all(member, 'é', 'e')) %>%
+  mutate(member = str_replace_all(member, 'ó', 'o')) %>%
+  mutate(member = str_replace_all(member, 'í', 'i')) %>%
+  mutate(member = str_replace_all(member, 'ú', 'u')) %>%
+  mutate(member = str_replace_all(member, 'ñ', 'n')) %>%
+  mutate(member = str_replace_all(member, '  ', ' '))  %>%
+  mutate(member = str_replace_all(member, "’", "'")) %>%
+  left_join(legkey, by = "member") %>%
+  write_rds("metadata_allvotesmart.rds")
+  
+read_rds('fullscrape.rds') %>%
+  filter(!is.na(member)) %>%
+  mutate(member = str_remove_all(member, "Sen\\. ")) %>%
+  mutate(member = str_remove_all(member, "Rep\\. ")) %>%
+  mutate(member = str_to_lower(member)) %>%
+  mutate(member = str_replace_all(member, 'á', 'a')) %>%
+  mutate(member = str_replace_all(member, 'é', 'e')) %>%
+  mutate(member = str_replace_all(member, 'ó', 'o')) %>%
+  mutate(member = str_replace_all(member, 'í', 'i')) %>%
+  mutate(member = str_replace_all(member, 'ú', 'u')) %>%
+  mutate(member = str_replace_all(member, 'ñ', 'n')) %>%
+  mutate(member = str_replace_all(member, '  ', ' '))  %>%
+  mutate(member = str_replace_all(member, "’", "'")) %>%
+  left_join(legkey, by = "member") %>%
+  write_rds("opioids_allvotesmart.rds")
+```
+
+```{r qualitative sentence finder}
+#"I voted for tonight's legislation because it increases funding for border security, which will help prevent the flow of illegal immigration, human trafficking, and deadly drugs, including opioids and fentanyl, at our southern border"  https://votesmart.org//public-statement/1330679/house-passes-funding-for-border-security/?search=opioid#.Xrc6kxNKh0s
+# "With these huge savings, we are also investing in new research for  new treatments and cures and fighting the opioid epidemic, as the  gentleman from New York (Mr Rose) pointed out, and in the community  health centers that deliver quality healthcare to so many Americans" https://votesmart.org//public-statement/1389259/lower-drug-costs-now-act-of-2019/?search=opioid
+# "By deterring drug traffickers and those who produce illicit drugs, we are taking another step in a multi-faceted approach in the fight against fentanyl--and I'll keep working with my colleagues to prevent overdoses, increase access to wraparound treatment, and pave more pathways to long-term recovery" https://votesmart.org//public-statement/1376072/cassidy-hassan-kustoff-and-spanberger-introduce-bill-to-crack-down-on-illegal-pill-presses/?search=opioid#.XrdGFxNKh0s
+
+sf <- read_rds("sentences_fullNA.rds")
+s1 <- sf %>% filter(sent_score < .5 & sent_score > -.5) #%>% filter(str_detect(text, "treatment") & str_detect(text, "illicit"))
+s1$text[143]
+
+s1$text[2832]
+
+s1 %>% filter(sentence_id == 647)
+
+sf %>% filter(str_detect(text,"By deterring drug traffickers"))
+
 ```
