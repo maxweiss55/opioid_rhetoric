@@ -1,0 +1,322 @@
+---
+title: "PressReleases_Reprod"
+author: "Max Weiss"
+date: "5/27/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(rvest)
+library(ProPublicaR)
+library(Rcrawler)
+library(magrittr)
+library(tidyr)
+library(tokenizers)
+library(htmlTable)
+library(XML)
+library(readxl)
+library(tidytext)
+library(htmltidy)
+library(jsonlite)
+library(lubridate)
+library(textmineR)
+library(tm)
+library(fuzzyjoin)
+library(reshape2)
+```
+
+```{r Member Frequency Analysis}
+
+#Load in dataset with the date, title, and member for all 809,633 Public Statements scraped from VoteSmart on February 26, 2020
+all <- read_rds('allstatements.rds') %>%
+  #Remove empty rows
+  filter(!is.na(date) & !is.na(title) & !is.na(member)) %>%
+  #Remove all observations after February 17, 2020 (Opioid Public Statement dataset was scraped from VoteSmart on February 18, 2020)
+  mutate(date = as.character(date)) %>%
+  filter(date != "Feb. 18, 2020" &
+         date != "Feb. 19, 2020" &
+         date != "Feb. 20, 2020" &
+         date != "Feb. 21, 2020" & 
+         date != "Feb. 22, 2020" &
+         date != "Feb. 23, 2020" &
+         date != "Feb. 24, 2020" &           
+         date != "Feb. 25, 2020" &           
+         date != "Feb. 26, 2020") 
+#809,170 Public Statements remain at this point
+      
+#Count the number of Public Statements from each member
+all_memcount <- all %>%
+  #Remove observations that are full repeats; 21,010 (2.60%) repeat observations removed in this step
+  distinct() %>%
+  #788,160 Public Statememnts remain at this point
+  #Tally the number of observations grouped by member
+  count(member) %>%
+  #Arrange from highest to lowest member count
+  arrange(desc(n)) %>%
+  #Rename column displaying member counts as `total`
+  rename(total = n)
+
+#Load in dataset with the date, title, member, path, and text for the 13,500 Opioid Public Statements scraped from VoteSmart on February 18, 2020
+opioid <- read_rds('fullscrape.rds') %>%
+  #Remove empty rows
+  filter(!is.na(date) & !is.na(title) & !is.na(member) & !is.na(path) & !is.na(text)) %>%
+  #Remove all observations after February 17, 2020 (Opioid Public Statement dataset was scraped from VoteSmart on February 18, 2020)
+  mutate(date = as.character(date)) %>%
+  filter(date != "Feb. 18, 2020")
+#13,497 Opioid Public Statements remain at this point
+
+#Count the number of Opioid Public Statements from each member
+opioid_memcount <- opioid %>%
+  #Remove observations that are full repeats; 422 (3.13%) repeat observations removed in this step
+  distinct() %>%
+  #13,075 Opioid Public Atatememnts remain at this point
+  #Tally the number of observations grouped by member
+  count(member) %>%
+  #Arrange from highest to lowest member count
+  arrange(desc(n)) %>%
+  #Rename column displaying member counts as `opioid`
+  rename(opioid = n)
+
+#Find the proportion of each member's total Public Statements that are related to opioids
+#Join the two informative dataframes (defaults by member)
+memcounts <- left_join(all_memcount, opioid_memcount) %>%
+  #If none of a member's Public Statements were about opioids, set the `opioid` variable equal to 0 (instead of NA)
+  mutate(opioid = ifelse(is.na(opioid), 0, opioid)) %>%
+  #Divide for each member: number of Public Statements about opioids divided by total number of Public Statements
+  mutate(prop = opioid / total) %>%
+  #Arrange from highest to lowest relative frequency
+  arrange(desc(prop))
+
+#Load in the key that relates congress member identifiers and information `full name` to their processed (special characters removed, all lowercase) name from VoteSmart `member`
+#This key was constructed manually for all 536 voting members of the 116th Congress
+legkey <- read_csv("legkey.csv")
+
+#Join the member relative frequency dataset to member key to add standardized identifiers
+memcounts_indexed <- memcounts %>%
+  #Process `member` to remove special characters and lowercase, match key `member` column
+  #Remove "Sen." and "Rep." prefixes from `member`
+  mutate(member = str_remove_all(member, "Sen\\. ")) %>%
+  mutate(member = str_remove_all(member, "Rep\\. ")) %>%
+  #`member` to lowercase
+  mutate(member = str_to_lower(member)) %>%
+  #Remove accents and tilde in `member`
+  mutate(member = str_replace_all(member, 'á', 'a')) %>%
+  mutate(member = str_replace_all(member, 'é', 'e')) %>%
+  mutate(member = str_replace_all(member, 'ó', 'o')) %>%
+  mutate(member = str_replace_all(member, 'í', 'i')) %>%
+  mutate(member = str_replace_all(member, 'ú', 'u')) %>%
+  mutate(member = str_replace_all(member, 'ñ', 'n')) %>%
+  #Parse double spaces to single spaces in `member`
+  mutate(member = str_replace_all(member, '  ', ' '))  %>%
+  #Parse "’" symbol string to "'" symbol string in `member`
+  mutate(member = str_replace_all(member, "’", "'")) %>%
+  #Join to member key by `member` 
+  left_join(legkey, by = "member")
+
+#Save dataframe to .rds file
+write_rds(memcounts_indexed, "freq_allvotesmart.rds")
+
+```
+
+```{r Member Frequency Analysis for 116th Congress}
+
+#Load in dataset with the date, title, and member for all 809,633 Public Statements scraped from VoteSmart on February 26, 2020
+all <- read_rds('allstatements.rds') %>%
+  #Remove empty rows
+  filter(!is.na(date) & !is.na(title) & !is.na(member)) %>%
+  #Filter to include only Public Statements from the first year of the 116th Congress
+  mutate(date = as.character(date)) %>%
+  filter(str_detect(date, "2019") | 
+         str_detect(date, "Jan. 3, 2020") | 
+         str_detect(date, "Jan. 2, 2020") | 
+         str_detect(date, "Jan. 1, 2020")) %>%
+  filter(!str_detect(date, "Jan. 2, 2019") & 
+         !str_detect(date, "Jan. 1, 2019")) 
+#111,014 Public Statements remain at this point
+
+#Count the number of Public Statements from each member
+all_memcount <- all %>%
+  #Remove observations that are full repeats; 4,368 (3.93%) repeat observations removed in this step
+  distinct() %>%
+  #106,646 Public Statememnts remain at this point
+  #Tally the number of observations grouped by member
+  count(member) %>%
+  #Arrange from highest to lowest member count
+  arrange(desc(n)) %>%
+  #Rename column displaying member counts as `total`
+  rename(total = n)
+
+#Load in dataset with the date, title, member, path, and text for the 13,500 Opioid Public Statements scraped from VoteSmart on February 18, 2020
+opioid <- read_rds('fullscrape.rds') %>%
+  #Remove empty rows
+  filter(!is.na(date) & !is.na(title) & !is.na(member) & !is.na(path) & !is.na(text)) %>%
+  #Filter to include only Public Statements from the first year of the 116th Congress
+  mutate(date = as.character(date)) %>%
+  filter(str_detect(date, "2019") | 
+         str_detect(date, "Jan. 3, 2020") | 
+         str_detect(date, "Jan. 2, 2020") | 
+         str_detect(date, "Jan. 1, 2020")) %>%
+  filter(!str_detect(date, "Jan. 2, 2019") & 
+         !str_detect(date, "Jan. 1, 2019"))
+#2,383 Opioid Public Statements remain at this point
+
+#Count the number of Opioid Public Statements from each member
+opioid_memcount <- opioid %>%
+  #Remove observations that are full repeats; 136 (5.71%) repeat observations removed in this step
+  distinct() %>%
+  #2,247 Opioid Public Atatememnts remain at this point
+  #Tally the number of observations grouped by member
+  count(member) %>%
+  #Arrange from highest to lowest member count
+  arrange(desc(n)) %>%
+  #Rename column displaying member counts as `opioid`
+  rename(opioid = n)
+
+#Find the proportion of each member's total Public Statements that are related to opioids
+#Join the two informative dataframes (defaults by member)
+memcounts <- left_join(all_memcount, opioid_memcount) %>%
+  #If none of a member's Public Statements were about opioids, set the `opioid` variable equal to 0 (instead of NA)
+  mutate(opioid = ifelse(is.na(opioid), 0, opioid)) %>%
+  #Divide for each member: number of Public Statements about opioids divided by total number of Public Statements
+  mutate(prop = opioid / total) %>%
+  #Arrange from highest to lowest relative frequency
+  arrange(desc(prop))
+
+#Load in the key that relates congress member identifiers and information `full name` to their processed (special characters removed, all lowercase) name from VoteSmart `member`
+#This key was constructed manually for all 536 voting members of the 116th Congress
+legkey <- read_csv("legkey.csv")
+
+#Join the member relative frequency dataset to member key to add standardized identifiers
+memcounts_indexed <- memcounts %>%
+  #Process `member` to remove special characters and lowercase, match key `member` column
+  #Remove "Sen." and "Rep." prefixes from `member`
+  mutate(member = str_remove_all(member, "Sen\\. ")) %>%
+  mutate(member = str_remove_all(member, "Rep\\. ")) %>%
+  #`member` to lowercase
+  mutate(member = str_to_lower(member)) %>%
+  #Remove accents and tilde in `member`
+  mutate(member = str_replace_all(member, 'á', 'a')) %>%
+  mutate(member = str_replace_all(member, 'é', 'e')) %>%
+  mutate(member = str_replace_all(member, 'ó', 'o')) %>%
+  mutate(member = str_replace_all(member, 'í', 'i')) %>%
+  mutate(member = str_replace_all(member, 'ú', 'u')) %>%
+  mutate(member = str_replace_all(member, 'ñ', 'n')) %>%
+  #Parse double spaces to single spaces in `member`
+  mutate(member = str_replace_all(member, '  ', ' '))  %>%
+  #Parse "’" symbol string to "'" symbol string in `member`
+  mutate(member = str_replace_all(member, "’", "'")) %>%
+  #Join to member key by `member` 
+  left_join(legkey, by = "member")
+  #Note: Sen. Kelly Loeffler was not sworn into office until January 6, 2020, so no statements from Sen. Loeffler were included in this timeframe
+
+#Save dataframe to .rds file
+write_rds(memcounts_indexed, "freq_116th.rds")
+
+```
+
+```{r Build Sentences Dataset 116th}
+
+#Load in dataset with the date, title, member, path, and text for the 13,500 Opioid Public Statements scraped from VoteSmart on February 18, 2020
+opioid <- read_rds('fullscrape.rds') %>%
+  #Remove empty rows
+  filter(!is.na(date) & !is.na(title) & !is.na(member) & !is.na(path) & !is.na(text)) %>%
+  #Filter to include only Public Statements from the first year of the 116th Congress
+  mutate(date = as.character(date)) %>%
+  filter(str_detect(date, "2019") | 
+         str_detect(date, "Jan. 3, 2020") | 
+         str_detect(date, "Jan. 2, 2020") | 
+         str_detect(date, "Jan. 1, 2020")) %>%
+  filter(!str_detect(date, "Jan. 2, 2019") & 
+         !str_detect(date, "Jan. 1, 2019")) %>%
+  #Remove phrase that ended the scraped text of most public statements
+  mutate(text = str_remove_all(text, " All content © 1992 - 2020 Vote Smart unless otherwise attributed - Privacy Policy - Legislative demographic data provided by Aristotle International, Inc. Mobile Version \\#\\{text\\} You are about to be redirected to a secure checkout page. Please note: The total order amount will read \\$0.01. This is a card processor fee. Please know that a recurring donation of the amount and frequency that you selected will be processed and initiated tomorrow. You may see a one-time charge of \\$0.01 on your statement. Continue to secure page »")) %>%
+  #Remove observations that are full repeats
+  distinct()
+#2,247 Opioid Public Statements remain at this point
+
+#Split the text of each Opioid Public Statements by sentence
+opioid_sentences <- opioid %>%
+  #Remove periods that directly follow a capital letter (likely to be an acronym)
+  mutate(text = str_replace_all(text, "(?<=[:upper:])\\.", "")) %>%
+  #Remove periods that are both directly preceded by and directly follow a lowercase letter (likely to be an acronym)
+  mutate(text = str_replace_all(text, "(?<=[:alnum:])\\.(?=[:alnum:])", "")) %>%
+  #Remove the periods from common abbreviations derived through sampling the dataset
+  mutate(text = str_replace_all(text, "Sen\\.", "Sen")) %>%
+  mutate(text = str_replace_all(text, "Rep\\.", "Rep")) %>%
+  mutate(text = str_replace_all(text, "Sens\\.", "Sens")) %>%
+  mutate(text = str_replace_all(text, "Reps\\.", "Reps")) %>%
+  mutate(text = str_replace_all(text, "Mrs\\.", "Mrs")) %>%
+  mutate(text = str_replace_all(text, "Mr\\.", "Mr")) %>%
+  mutate(text = str_replace_all(text, "Ms\\.", "Ms")) %>%
+  mutate(text = str_replace_all(text, "Dr\\.", "Dr")) %>%
+  mutate(text = str_replace_all(text, "Pres\\.", "Pres")) %>%
+  mutate(text = str_replace_all(text, "St\\.", "St")) %>%
+  #Separate Public Statements by end punctuation (periods, question marks, exclammation point) and create a new observation for each separated sentence
+  separate_rows(text, sep = "[.?!]", convert = FALSE) %>%
+  #121,670 split statements derived
+  #Filter to only include split statements that contain language directly associated with opioids
+  filter(str_detect(text, regex("heroin|opioid|opiate|fentanyl|naloxone|narcan|synthetics|oxycodone|hydrocodone|morphine|codeine|methadone|meperidine|buprenorphine|hydromorphone|benzo", ignore_case = TRUE))) %>%
+  #Add a sentence identifier based on row number
+  mutate(sentence_id = row_number())
+  #10,404 split statements about opioids remain
+
+#The follow seeks to correct for split statements that are especially long, primarily due to the practice of including long lists in public statements that are not separated by common end punctuation. These heuristics were discovered through sampling the longest split statements.
+
+#Build histogram of split statement lengths
+length <- opioid_sentences %>%
+  mutate(count = str_count(text)) %>%
+  arrange(desc(count)) %>%
+  select(text, count)
+hist(length$count, breaks = 1000)
+
+opioid_sentences2 <- opioid_sentences
+
+#Replace all dollar signs directly preceded by a lowercase letter with a period (prepare for splitting) followed by a dollar sign. This is an uncommon string pattern that was a feature of lists detailing where money is being allocated, where entries were split by formatting rather than a traditional end punctuation, and should be treated as separate statements. This was a feature of 30 split statements.
+opioid_sentences2 <- opioid_sentences2 %>%
+  mutate(text = str_replace_all(text, "(?<=[:lower:])\\$", ".$"))
+
+#Replace all semicolons directly followed by a non-space character with a semicolon followed by a period (prepare for splitting). This is an uncommon string pattern that was a feature of lists, where entries were not split by traditional end punctuation, and should be treated as separate statements. This was a feature of 111 split statements.
+opioid_sentences2 <- opioid_sentences2 %>%
+  mutate(text = str_replace_all(text, "\\;(?=[:graph:])", ";."))
+
+#Replace the bullet point symbol found in many long lists with a period (prepare for splitting). This is an uncommon string pattern that was a feature of lists and should be treated as separate statements. This was a feature of 8 split statements.
+opioid_sentences2 <- opioid_sentences2 %>%
+  mutate(text = str_replace_all(text, "·", "."))
+
+#Separate Public Statements by end punctuation (periods, question marks, exclammation point) and create a new observation for each separated sentence
+#Filter to only include sentences that contain language directly associated with opioids
+opioid_sentences2 <- opioid_sentences2 %>%
+  separate_rows(text, sep = "[.?!]", convert = FALSE) %>%
+  filter(str_detect(text, regex("heroin|opioid|opiate|fentanyl|naloxone|narcan|synthetics|oxycodone|hydrocodone|morphine|codeine|methadone|meperidine|buprenorphine|hydromorphone|benzo", ignore_case = TRUE))) 
+
+#One more round of sampling was completed for the longest text strings, and another heuristic was discovered: many of the longest text strings were long because they were from scraped public statements that contained two statements separated by formatting alone (not by any punctuation). These were, therefore, parsed as the last word of one statement concatenated to the first word of another statement, so they often contained a lowercase letter followed by an uppercase letter. This string pattern is uncommon, but it is more common than those in the previous heuristics (for example, the pattern would appear in "McConnell"). To separate long statements that should be represented as separate sentences, while mitigating potential for error, the pattern was only remedied in the longest 1% of text strings.
+#Place a period (prepare for splitting) in the middle of the pattern of a lowercase letter followed directly by an uppercase letter. This was a feature of 88 observations that were in the top 1% of observations by length.
+opioid_sentences2 <- opioid_sentences2 %>%
+  #Count the length of each text string
+  mutate(count = str_count(text)) %>%
+  #If, the string length is greater than 793 characters, add a period in between the pattern of interest. 1% of text strings were greater than 793 characters.
+  mutate(text = ifelse(count > 793, str_replace_all(text, "(?<=[:lower:])(?=[:upper:])", "."), text)) %>%
+  #Remove string count variable (unnecessary for future analysis)
+  select(-count)
+
+#Separate Public Statements by end punctuation (periods, question marks, exclammation point) and create a new observation for each separated sentence
+#Filter to only include sentences that contain language directly associated with opioids
+opioid_sentences2 <- opioid_sentences2 %>%
+  separate_rows(text, sep = "[.?!]", convert = FALSE) %>%
+  filter(str_detect(text, regex("heroin|opioid|opiate|fentanyl|naloxone|narcan|synthetics|oxycodone|hydrocodone|morphine|codeine|methadone|meperidine|buprenorphine|hydromorphone|benzo", ignore_case = TRUE))) %>%
+  mutate(sentence_id = row_number())
+#10,638 split statements (hereafter referred as sentences) remain
+
+#Build histogram of sentence lengths
+length2 <- opioid_sentences2 %>%
+  mutate(count = str_count(text)) %>%
+  arrange(desc(count)) %>%
+  select(text, count)
+hist(length2$count, breaks = 1000)
+
+#Save dataframe to .rds file
+write_rds(opioid_sentences2, "sentences_116th.rds")
+
+```
