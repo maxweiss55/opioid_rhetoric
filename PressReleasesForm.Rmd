@@ -666,4 +666,6 @@ err_still2 <- textyrec %>%
 #THIS IS THE MOST RECOVERED VERSION
 write_rds(portman_recov, "even_cleaner.rds")
 even_cleaner <- read_rds("even_cleaner.rds")
+
+even_cleaner %>% count(member) %>% arrange(desc(n))
 ```

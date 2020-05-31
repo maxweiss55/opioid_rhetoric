@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE) 
 library(tidyverse)
 library(rvest)
 library(ProPublicaR)
@@ -440,7 +440,7 @@ return(sent_matrix)
 
 df <- read_rds("sentences_116th.rds")
 sentence_matrix <- score_matrix(df)
-
+ 
 ```
 
 

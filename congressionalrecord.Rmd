@@ -8,7 +8,11 @@ output: html_document
 ```{r setup, include=FALSE}
 
 library(tidyverse)
-
+library(readtext)
+library(scales)
+library(lubridate)
+library(cowplot)
+library(magick)
 ```
 
 
@@ -24,264 +28,261 @@ paste(unlist(text), collapse = "")
 ```
 
 
-```{r mauve}
-#114
-speech114 <- read.table("hein-daily/speeches_114.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-descr114 <- read.table("hein-daily/descr_114.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-big_114 <- left_join(descr114, speech114, by = "speech_id")
-
-opioid_114 <- big_114 %>%
-  filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
-                                  ignore_case = TRUE)))
-
-nrow(opioid_114)
-nrow(big_114)
-
-#113
-speech113 <- read.table("hein-daily/speeches_113.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-descr113 <- read.table("hein-daily/descr_113.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-big_113 <- left_join(descr113, speech113, by = "speech_id")
-
-opioid_113 <- big_113 %>%
-  filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
-                                  ignore_case = TRUE)))
-
-nrow(opioid_113)
-nrow(big_113)
-
-#112
-speech112 <- read.table("hein-daily/speeches_112.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-descr112 <- read.table("hein-daily/descr_112.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-big_112 <- left_join(descr112, speech112, by = "speech_id")
-
-opioid_112 <- big_112 %>%
-  filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
-                                  ignore_case = TRUE)))
-
-nrow(opioid_112)
-nrow(big_112)
-
-#111
-speech111 <- read.table("hein-daily/speeches_111.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-descr111 <- read.table("hein-daily/descr_111.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-big_111 <- left_join(descr111, speech111, by = "speech_id")
-
-opioid_111 <- big_111 %>%
-  filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
-                                  ignore_case = TRUE)))
-
-nrow(opioid_111)
-nrow(big_111)
-
-#110
-speech110 <- read.table("hein-daily/speeches_110.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-descr110 <- read.table("hein-daily/descr_110.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-big_110 <- left_join(descr110, speech110, by = "speech_id")
-
-opioid_110 <- big_110 %>%
-  filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
-                                  ignore_case = TRUE)))
-
-nrow(opioid_110)
-nrow(big_110)
-
-#109
-speech109 <- read.table("hein-daily/speeches_109.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-descr109 <- read.table("hein-daily/descr_109.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-big_109 <- left_join(descr109, speech109, by = "speech_id")
-
-opioid_109 <- big_109 %>%
-  filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
-                                  ignore_case = TRUE)))
-
-nrow(opioid_109)
-nrow(big_109)
-
-#108
-speech108 <- read.table("hein-daily/speeches_108.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-descr108 <- read.table("hein-daily/descr_108.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-big_108 <- left_join(descr108, speech108, by = "speech_id")
-
-opioid_108 <- big_108 %>%
-  filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
-                                  ignore_case = TRUE)))
-
-nrow(opioid_108)
-nrow(big_108)
-
-#107
-speech107 <- read.table("hein-daily/speeches_107.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-descr107 <- read.table("hein-daily/descr_107.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-big_107 <- left_join(descr107, speech107, by = "speech_id")
-
-opioid_107 <- big_107 %>%
-  filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
-                                  ignore_case = TRUE)))
-
-nrow(opioid_107)
-nrow(big_107)
-
-#106
-speech106 <- read.table("hein-daily/speeches_106.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-descr106 <- read.table("hein-daily/descr_106.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-big_106 <- left_join(descr106, speech106, by = "speech_id")
-
-opioid_106 <- big_106 %>%
-  filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
-                                  ignore_case = TRUE)))
-
-nrow(opioid_106)
-nrow(big_106)
-
-#105
-speech105 <- read.table("hein-daily/speeches_105.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-descr105 <- read.table("hein-daily/descr_105.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-big_105 <- left_join(descr105, speech105, by = "speech_id")
-
-opioid_105 <- big_105 %>%
-  filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
-                                  ignore_case = TRUE)))
-
-nrow(opioid_105)
-nrow(big_105)
-
-#104
-speech104 <- read.table("hein-daily/speeches_104.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-descr104 <- read.table("hein-daily/descr_104.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-big_104 <- left_join(descr104, speech104, by = "speech_id")
-
-opioid_104 <- big_104 %>%
-  filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
-                                  ignore_case = TRUE)))
-
-nrow(opioid_104)
-nrow(big_104)
-
-#103
-speech103 <- read.table("hein-daily/speeches_103.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-descr103 <- read.table("hein-daily/descr_103.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-big_103 <- left_join(descr103, speech103, by = "speech_id")
-
-opioid_103 <- big_103 %>%
-  filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
-                                  ignore_case = TRUE)))
-
-nrow(opioid_103)
-nrow(big_103)
-
-#102
-speech102 <- read.table("hein-daily/speeches_102.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-descr102 <- read.table("hein-daily/descr_102.txt", sep = "|", fill = TRUE, header = TRUE) %>%
-  mutate(speech_id = as.factor(speech_id))
-
-big_102 <- left_join(descr102, speech102, by = "speech_id")
-
-opioid_102 <- big_102 %>%
-  filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
-                                  ignore_case = TRUE)))
-
-nrow(opioid_102)
-nrow(big_102)
-
-speech111 %>% 
-  filter(str_detect(speech, "I yield back our time."))
-
-teste <- read_table("hein-daily/speeches_111.txt", progress = show_progress())
-teste2 <- teste %>%
-  separate(`speech_id|speech`, sep = "\\|", into = c("speech_id", "speech"))
-
-glimpse(teste2)
-
-teste %>% filter(nrow()==42301)
-teste$`speech_id|speech`[42301]
-
-teste2 %>% filter(speech_id == as.character(1110107946)) 
-```
-```{r data fix}
-
-big_102a <- big_102 %>%
-  mutate(session = 102)
-big_103a <- big_103 %>%
-  mutate(session = 103)
-big_104a <- big_104 %>%
-  mutate(session = 104)
-big_105a <- big_105 %>%
-  mutate(session = 105)
-big_106a <- big_106 %>%
-  mutate(session = 106)
-big_107a <- big_107 %>%
-  mutate(session = 107)
-big_108a <- big_108 %>%
-  mutate(session = 108)
-big_109a <- big_109 %>%
-  mutate(session = 109)
-big_110a <- big_110 %>%
-  mutate(session = 110)
-big_111a <- big_111 %>%
-  mutate(session = 111)
-big_112a <- big_112 %>%
-  mutate(session = 112)
-big_113a <- big_113 %>%
-  mutate(session = 113)
-big_114a <- big_114 %>%
-  mutate(session = 114)
-
-big_all <- rbind(big_102a, big_103a, big_104a, big_105a, big_106a, big_107a, big_108a, big_109a, big_110a, big_111a, big_112a, big_113a, big_114a)
-
-write_rds(big_all, "big_all.rds")
-
-all_samp <- sample_n(big_all,100)
-write_csv(all_samp, "all_samp.csv")
+```{r mauve DO NOT USE THIS CHUNK}
+# #114
+# speech114 <- read.table("hein-daily/speeches_114.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+#   mutate(speech_id = as.factor(speech_id))
+# 
+# descr114 <- read.table("hein-daily/descr_114.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+#   mutate(speech_id = as.factor(speech_id))
+# 
+# big_114 <- left_join(descr114, speech114, by = "speech_id")
+# 
+# opioid_114 <- big_114 %>%
+#   filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
+#                                   ignore_case = TRUE)))
+# 
+# #113
+# speech113 <- read.table("hein-daily/speeches_113.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+#   mutate(speech_id = as.factor(speech_id))
+# 
+# descr113 <- read.table("hein-daily/descr_113.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+#   mutate(speech_id = as.factor(speech_id))
+# 
+# big_113 <- left_join(descr113, speech113, by = "speech_id")
+# 
+# opioid_113 <- big_113 %>%
+#   filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
+#                                   ignore_case = TRUE)))
+# 
+# nrow(opioid_113)
+# nrow(big_113)
+# 
+# #112
+# speech112 <- read.table("hein-daily/speeches_112.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+#   mutate(speech_id = as.factor(speech_id))
+# 
+# descr112 <- read.table("hein-daily/descr_112.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+#   mutate(speech_id = as.factor(speech_id))
+# 
+# big_112 <- left_join(descr112, speech112, by = "speech_id")
+# 
+# opioid_112 <- big_112 %>%
+#   filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
+#                                   ignore_case = TRUE)))
+# 
+# nrow(opioid_112)
+# nrow(big_112)
+# 
+# #111
+# speech111 <- read.table("hein-daily/speeches_111.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+#   mutate(speech_id = as.factor(speech_id))
+# 
+# descr111 <- read.table("hein-daily/descr_111.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+#   mutate(speech_id = as.factor(speech_id))
+# 
+# big_111 <- left_join(descr111, speech111, by = "speech_id")
+# 
+# opioid_111 <- big_111 %>%
+#   filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
+#                                   ignore_case = TRUE)))
+# 
+# nrow(opioid_111)
+# nrow(big_111)
+# 
+# #110
+# speech110 <- read.table("hein-daily/speeches_110.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+#   mutate(speech_id = as.factor(speech_id))
+# 
+# descr110 <- read.table("hein-daily/descr_110.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+#   mutate(speech_id = as.factor(speech_id))
+# 
+# big_110 <- left_join(descr110, speech110, by = "speech_id")
+# 
+# opioid_110 <- big_110 %>%
+#   filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
+#                                   ignore_case = TRUE)))
+# 
+# nrow(opioid_110)
+# nrow(big_110)
+# 
+# #109
+# speech109 <- read.table("hein-daily/speeches_109.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+#   mutate(speech_id = as.factor(speech_id))
+# 
+# descr109 <- read.table("hein-daily/descr_109.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+#   mutate(speech_id = as.factor(speech_id))
+# 
+# big_109 <- left_join(descr109, speech109, by = "speech_id")
+# 
+# opioid_109 <- big_109 %>%
+#   filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
+#                                   ignore_case = TRUE)))
+# 
+# nrow(opioid_109)
+# nrow(big_109)
+# 
+# #108
+# speech108 <- read.table("hein-daily/speeches_108.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+#   mutate(speech_id = as.factor(speech_id))
+# 
+# descr108 <- read.table("hein-daily/descr_108.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+#   mutate(speech_id = as.factor(speech_id))
+# 
+# big_108 <- left_join(descr108, speech108, by = "speech_id")
+# 
+# opioid_108 <- big_108 %>%
+#   filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
+#                                   ignore_case = TRUE)))
+# 
+# nrow(opioid_108)
+# nrow(big_108)
+# 
+# #107
+# speech107 <- read.table("hein-daily/speeches_107.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+#   mutate(speech_id = as.factor(speech_id))
+# 
+# descr107 <- read.table("hein-daily/descr_107.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+#   mutate(speech_id = as.factor(speech_id))
+# 
+# big_107 <- left_join(descr107, speech107, by = "speech_id")
+# 
+# opioid_107 <- big_107 %>%
+#   filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
+#                                   ignore_case = TRUE)))
+# 
+# nrow(opioid_107)
+# nrow(big_107)
+# 
+# #106
+# speech106 <- read.table("hein-daily/speeches_106.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+#   mutate(speech_id = as.factor(speech_id))
+# 
+# descr106 <- read.table("hein-daily/descr_106.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+#   mutate(speech_id = as.factor(speech_id))
+# 
+# big_106 <- left_join(descr106, speech106, by = "speech_id")
+# 
+# opioid_106 <- big_106 %>%
+#   filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
+#                                   ignore_case = TRUE)))
+# 
+# nrow(opioid_106)
+# nrow(big_106)
+# 
+# #105
+# speech105 <- read.table("hein-daily/speeches_105.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+#   mutate(speech_id = as.factor(speech_id))
+# 
+# descr105 <- read.table("hein-daily/descr_105.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+#   mutate(speech_id = as.factor(speech_id))
+# 
+# big_105 <- left_join(descr105, speech105, by = "speech_id")
+# 
+# opioid_105 <- big_105 %>%
+#   filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
+#                                   ignore_case = TRUE)))
+# 
+# nrow(opioid_105)
+# nrow(big_105)
+# 
+# #104
+# speech104 <- read.table("hein-daily/speeches_104.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+#   mutate(speech_id = as.factor(speech_id))
+# 
+# descr104 <- read.table("hein-daily/descr_104.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+#   mutate(speech_id = as.factor(speech_id))
+# 
+# big_104 <- left_join(descr104, speech104, by = "speech_id")
+# 
+# opioid_104 <- big_104 %>%
+#   filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
+#                                   ignore_case = TRUE)))
+# 
+# nrow(opioid_104)
+# nrow(big_104)
+# 
+# #103
+# speech103 <- read.table("hein-daily/speeches_103.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+#   mutate(speech_id = as.factor(speech_id))
+# 
+# descr103 <- read.table("hein-daily/descr_103.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+#   mutate(speech_id = as.factor(speech_id))
+# 
+# big_103 <- left_join(descr103, speech103, by = "speech_id")
+# 
+# opioid_103 <- big_103 %>%
+#   filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
+#                                   ignore_case = TRUE)))
+# 
+# nrow(opioid_103)
+# nrow(big_103)
+# 
+# #102
+# speech102 <- read.table("hein-daily/speeches_102.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+#   mutate(speech_id = as.factor(speech_id))
+# 
+# descr102 <- read.table("hein-daily/descr_102.txt", sep = "|", fill = TRUE, header = TRUE) %>%
+#   mutate(speech_id = as.factor(speech_id))
+# 
+# big_102 <- left_join(descr102, speech102, by = "speech_id")
+# 
+# opioid_102 <- big_102 %>%
+#   filter(str_detect(speech, regex("Heroin|Opioid|opiate|fentanyl", 
+#                                   ignore_case = TRUE)))
+# 
+# nrow(opioid_102)
+# nrow(big_102)
+# 
+# speech111 %>% 
+#   filter(str_detect(speech, "I yield back our time."))
+# 
+# teste <- read_table("hein-daily/speeches_111.txt", progress = show_progress())
+# teste2 <- teste %>%
+#   separate(`speech_id|speech`, sep = "\\|", into = c("speech_id", "speech"))
+# 
+# glimpse(teste2)
+# 
+# teste %>% filter(nrow()==42301)
+# teste$`speech_id|speech`[42301]
+# 
+# teste2 %>% filter(speech_id == as.character(1110107946)) 
+# ```
+# ```{r data fix}
+# 
+# big_102a <- big_102 %>%
+#   mutate(session = 102)
+# big_103a <- big_103 %>%
+#   mutate(session = 103)
+# big_104a <- big_104 %>%
+#   mutate(session = 104)
+# big_105a <- big_105 %>%
+#   mutate(session = 105)
+# big_106a <- big_106 %>%
+#   mutate(session = 106)
+# big_107a <- big_107 %>%
+#   mutate(session = 107)
+# big_108a <- big_108 %>%
+#   mutate(session = 108)
+# big_109a <- big_109 %>%
+#   mutate(session = 109)
+# big_110a <- big_110 %>%
+#   mutate(session = 110)
+# big_111a <- big_111 %>%
+#   mutate(session = 111)
+# big_112a <- big_112 %>%
+#   mutate(session = 112)
+# big_113a <- big_113 %>%
+#   mutate(session = 113)
+# big_114a <- big_114 %>%
+#   mutate(session = 114)
+# 
+# big_all <- rbind(big_102a, big_103a, big_104a, big_105a, big_106a, big_107a, big_108a, big_109a, big_110a, big_111a, big_112a, big_113a, big_114a)
+# 
+# write_rds(big_all, "big_all.rds")
+# 
+# all_samp <- sample_n(big_all,100)
+# write_csv(all_samp, "all_samp.csv")
 
 ```
 
@@ -312,13 +313,22 @@ descr103 <- read_table("hein-daily/descr_103.txt", col_names = "col") %>%
   separate(`col`, sep = "\\|", into = c("speech_id", "chamber", "date", "number_within_file", "speaker", "first_name", "last_name", "state", "gender", "line_start", "line_end", "file", "char_count", "word_count"))
 descr102 <- read_table("hein-daily/descr_102.txt", col_names = "col") %>%
   separate(`col`, sep = "\\|", into = c("speech_id", "chamber", "date", "number_within_file", "speaker", "first_name", "last_name", "state", "gender", "line_start", "line_end", "file", "char_count", "word_count"))
+descr101 <- read_table("hein-daily/descr_101.txt", col_names = "col") %>%
+  separate(`col`, sep = "\\|", into = c("speech_id", "chamber", "date", "number_within_file", "speaker", "first_name", "last_name", "state", "gender", "line_start", "line_end", "file", "char_count", "word_count"))
+descr100 <- read_table("hein-daily/descr_100.txt", col_names = "col") %>%
+  separate(`col`, sep = "\\|", into = c("speech_id", "chamber", "date", "number_within_file", "speaker", "first_name", "last_name", "state", "gender", "line_start", "line_end", "file", "char_count", "word_count"))
+descr099 <- read_table("hein-daily/descr_099.txt", col_names = "col") %>%
+  separate(`col`, sep = "\\|", into = c("speech_id", "chamber", "date", "number_within_file", "speaker", "first_name", "last_name", "state", "gender", "line_start", "line_end", "file", "char_count", "word_count"))
+descr098 <- read_table("hein-daily/descr_098.txt", col_names = "col") %>%
+  separate(`col`, sep = "\\|", into = c("speech_id", "chamber", "date", "number_within_file", "speaker", "first_name", "last_name", "state", "gender", "line_start", "line_end", "file", "char_count", "word_count"))
+descr097 <- read_table("hein-daily/descr_097.txt", col_names = "col") %>%
+  separate(`col`, sep = "\\|", into = c("speech_id", "chamber", "date", "number_within_file", "speaker", "first_name", "last_name", "state", "gender", "line_start", "line_end", "file", "char_count", "word_count"))
 
 
 new114 <- read_table("hein-daily/speeches_114.txt", progress = show_progress()) %>%
   separate(`speech_id|speech`, sep = "\\|", into = c("speech_id", "speech"))
 
 join114 <- left_join(new114, descr114, by = "speech_id")
-
 
 new113 <- read_table("hein-daily/speeches_113.txt", progress = show_progress()) %>%
   separate(`speech_id|speech`, sep = "\\|", into = c("speech_id", "speech"))
@@ -382,6 +392,31 @@ new102 <- read_table("hein-daily/speeches_102.txt", progress = show_progress()) 
 
 join102 <- left_join(new102, descr102, by = "speech_id")
 
+new101 <- read_table("hein-daily/speeches_101.txt", progress = show_progress()) %>%
+  separate(`speech_id|speech`, sep = "\\|", into = c("speech_id", "speech"))
+
+join101 <- left_join(new101, descr101, by = "speech_id")
+
+new100 <- read_table("hein-daily/speeches_100.txt", progress = show_progress()) %>%
+  separate(`speech_id|speech`, sep = "\\|", into = c("speech_id", "speech"))
+
+join100 <- left_join(new100, descr100, by = "speech_id")
+
+new099 <- read_table("hein-daily/speeches_099.txt", progress = show_progress()) %>%
+  separate(`speech_id|speech`, sep = "\\|", into = c("speech_id", "speech"))
+
+join099 <- left_join(new099, descr099, by = "speech_id")
+
+new098 <- read_table("hein-daily/speeches_098.txt", progress = show_progress()) %>%
+  separate(`speech_id|speech`, sep = "\\|", into = c("speech_id", "speech"))
+
+join098 <- left_join(new098, descr098, by = "speech_id")
+
+new097 <- read_table("hein-daily/speeches_097.txt", progress = show_progress()) %>%
+  separate(`speech_id|speech`, sep = "\\|", into = c("speech_id", "speech"))
+
+join097 <- left_join(new097, descr097, by = "speech_id")
+
 join102a <- join102 %>%
   mutate(session = 102)
 join103a <- join103 %>%
@@ -416,76 +451,128 @@ write_rds(joinall, "joinall.rds")
 join_samp <- sample_n(joinall,100)
 write_csv(join_samp, "join_samp.csv")
 
-descr113
-glimpse(new113)
-
-descr106 %>% filter(speech_id == as.factor(1060160857))
-
-descr106 %>% filter(speech_id == as.factor(1060000001))
 ```
 
+```{r AUTOMATE ALL THAT ABOVE (THIS IS GOOD)}
 
-```{r freq viz}
-fent_102 <- opioid_102 %>%
-  filter(str_detect(speech, regex("fentanyl", 
-                                  ignore_case = TRUE)))
-fent_103 <- opioid_103 %>%
-  filter(str_detect(speech, regex("fentanyl", 
-                                  ignore_case = TRUE)))
-fent_104 <- opioid_104 %>%
-  filter(str_detect(speech, regex("fentanyl", 
-                                  ignore_case = TRUE)))
-fent_105 <- opioid_105 %>%
-  filter(str_detect(speech, regex("fentanyl", 
-                                  ignore_case = TRUE)))
-fent_106 <- opioid_106 %>%
-  filter(str_detect(speech, regex("fentanyl", 
-                                  ignore_case = TRUE)))
-fent_107 <- opioid_107 %>%
-  filter(str_detect(speech, regex("fentanyl", 
-                                  ignore_case = TRUE)))
-fent_108 <- opioid_108 %>%
-  filter(str_detect(speech, regex("fentanyl", 
-                                  ignore_case = TRUE)))
-fent_109 <- opioid_109 %>%
-  filter(str_detect(speech, regex("fentanyl", 
-                                  ignore_case = TRUE)))
-fent_110 <- opioid_110 %>%
-  filter(str_detect(speech, regex("fentanyl", 
-                                  ignore_case = TRUE)))
-fent_111 <- opioid_111 %>%
-  filter(str_detect(speech, regex("fentanyl", 
-                                  ignore_case = TRUE)))
-fent_112 <- opioid_112 %>%
-  filter(str_detect(speech, regex("fentanyl", 
-                                  ignore_case = TRUE)))
-fent_113 <- opioid_113 %>%
-  filter(str_detect(speech, regex("fentanyl", 
-                                  ignore_case = TRUE)))
-fent_114 <- opioid_114 %>%
-  filter(str_detect(speech, regex("fentanyl", 
-                                  ignore_case = TRUE)))
+#Root table
+all <- tibble("speech_id" = NA, "speech" = NA, "chamber.x" = NA, "date" = NA, "number_within_file" = NA, "speaker" = NA, "first_name" = NA, "last_name" = NA, "state.x" = NA, "gender.x" = NA, "line_start" = NA, "line_end" = NA, "file" = NA, "char_count" = NA, "word_count" = NA, "speakerid" = NA, "lastname" = NA, "firstname" = NA, "chamber.y" = NA, "state.y" = NA, "gender.y" = NA, "party" = NA, "district" = NA, "nonvoting" = NA, "session" = NA)
 
-freq <- tibble(session = c(102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114), 
-               opioid = c(nrow(opioid_102), nrow(opioid_103), nrow(opioid_104), nrow(opioid_105), nrow(opioid_106), nrow(opioid_107), nrow(opioid_108), nrow(opioid_109), nrow(opioid_110), nrow(opioid_111), nrow(opioid_112), nrow(opioid_113), nrow(opioid_114)),
-               fent = c(nrow(fent_102), nrow(fent_103), nrow(fent_104), nrow(fent_105), nrow(fent_106), nrow(fent_107), nrow(fent_108), nrow(fent_109), nrow(fent_110), nrow(fent_111), nrow(fent_112), nrow(fent_113), nrow(fent_114)),
-               total = c(nrow(big_102), nrow(big_103), nrow(big_104), nrow(big_105), nrow(big_106), nrow(big_107), nrow(big_108), nrow(big_109), nrow(big_110), nrow(big_111), nrow(big_112), nrow(big_113), nrow(big_114))) %>%
-  mutate(opioid_freq = opioid / total,
-         fent_freq = fent / total,
-         fent_op = fent / opioid)
-
-freq %>% ggplot(aes(x = session, y = opioid_freq)) +
-  geom_col(fill = "darkblue")
+for (i in c("097", "098", "099", "100", "101", "102", "103", "104", "105", "106", "107", "108", "109", "110", "111", "112", "113", "114")){
   
-freq %>% ggplot(aes(x = session, y = fent_freq)) +
-  geom_col(fill = "darkblue")
+  print(i)
+  
+  #Load in speech description file
+  descr_for <- read_table(unz("hein-daily.zip", paste0("hein-daily/descr_", i, ".txt")), col_names = "col") %>%
+    separate(`col`, sep = "\\|", into = c("speech_id", "chamber", "date", "number_within_file", "speaker", "first_name", "last_name", "state", "gender", "line_start", "line_end", "file", "char_count", "word_count")) %>%
+    filter(speech_id != "speech_id") #removes Row 1 which has column names
+  
+  #Load in speech
+  speeches_for <- read_table(unz("hein-daily.zip", paste0("hein-daily/speeches_", i, ".txt")), progress = show_progress()) %>%
+    separate(`speech_id|speech`, sep = "\\|", into = c("speech_id", "speech"))
+  
+  speaker_for <- read_table(unz("hein-daily.zip", paste0("hein-daily/", i, "_SpeakerMap.txt")), progress = show_progress()) %>%
+    separate(`speakerid|speech_id|lastname|firstname|chamber|state|gender|party|district|nonvoting`, sep = "\\|", into = c("speakerid", "speech_id", "lastname", "firstname", "chamber", "state", "gender", "party", "district", "nonvoting"))
+  
+  #Join the two fully
+  comp <- left_join(speeches_for, descr_for, by = "speech_id") %>%
+  left_join(speaker_for, by = "speech_id") %>%
+  mutate(session = i)
+  
+  comp %>% filter(is.na(speech)) %>% nrow() %>% print()
+  
+  all <- rbind(all, comp)
+  
+  write_rds(all, "all_record.rds")
+  
+  print(i)
+}
 
-freq %>% ggplot(aes(x = session, y = fent_op)) +
-  geom_col(fill = "darkblue")
 
+
+# #Working for 114
+# descr_for <- read_table(unz("hein-daily.zip", "hein-daily/descr_114.txt"), col_names = "col") %>%
+#     separate(`col`, sep = "\\|", into = c("speech_id", "chamber", "date", "number_within_file", "speaker", "first_name", "last_name", "state", "gender", "line_start", "line_end", "file", "char_count", "word_count"))
+# 
+# speeches_for <- read_table(unz("hein-daily.zip", "hein-daily/speeches_114.txt"), progress = show_progress()) %>%
+#     separate(`speech_id|speech`, sep = "\\|", into = c("speech_id", "speech"))
+# 
+# speaker_for <- read_table(unz("hein-daily.zip", "hein-daily/114_SpeakerMap.txt"), progress = show_progress()) %>%
+#     separate(`speakerid|speech_id|lastname|firstname|chamber|state|gender|party|district|nonvoting`, sep = "\\|", into = c("speakerid", "speech_id", "lastname", "firstname", "chamber", "state", "gender", "party", "district", "nonvoting"))
+# 
+# comp_114 <- left_join(speeches_for, descr_for, by = "speech_id") %>%
+#   left_join(speaker_for, by = "speech_id") %>%
+#   mutate(session = 114)
+# nrow(comp_114)
+# head(comp_114, 20)
+# 
+# summary(comp_114)
+
+write_rds(all, "all_record.rds")
 ```
 
 
+```{r word freqs}
 
+sp <- read_rds("all_record.rds")
 
+sp %>% 
+  filter(!is.na(session)) %>%
+  count(session)
+
+sp_drugs <- sp %>%
+  mutate(cocaine = str_count(speech, regex("cocaine", ignore_case = TRUE)),
+         meth = str_count(speech, regex(" meth |methamphetamine", ignore_case = TRUE)),
+         opioid = str_count(speech, regex("opioid|opiate", ignore_case = TRUE)),
+         heroin = str_count(speech, regex("heroin ", ignore_case = TRUE)),
+         fentanyl = str_count(speech, regex("fentanyl", ignore_case = TRUE)),
+         all_opioid = str_count(speech, regex("heroin |opioid|opiate|fentanyl|naloxone|oxycontin|codone|morphine|codeine|methadone", ignore_case = TRUE)),
+         all_drug_eps = str_count(speech, regex("cocaine| meth |methamphetamine|heroin |opioid|opiate|fentanyl|naloxone|oxycontin|codone|morphine|codeine|methadone", ignore_case = TRUE)))
+         
+sp_drugs %>%
+  mutate(sum = cocaine + meth + all_opioid,
+         correct = sum == all_drug_eps) %>%
+  count(correct)
+
+head(sp_drugs)
+
+```
+
+```{r freq plots}
+
+drug <- read_rds("drug_record.rds")
+key <- read_csv("key_CR.csv") %>%
+  mutate(speakerid = as.character(speakerid))
+drug1 <- drug %>%
+  left_join(key, by = "speakerid") 
+
+drug1 %>%
+  filter(!is.na(speakerid) & (party != "N" & party != "I")) %>%
+  mutate(date = ymd(date)) %>%
+  mutate(freq = ifelse(str_detect(speech, regex("crime", ignore_case = TRUE)), 1, 0)) %>%
+  ggplot(aes(date, freq, color = party, group = party)) +
+  geom_smooth(aes(group = party), se = FALSE, method = "gam", formula = y ~ s(x, bs = "cs"), show.legend = FALSE) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  scale_color_manual(breaks = c("R", "D"),
+                        values=c("red", "blue")) +
+  theme_cowplot(12)
+
+drug1 %>%
+  filter(!is.na(speakerid) & (party != "N" & party != "I")) %>%
+  mutate(date = ymd(date)) %>%
+  mutate(freq = ifelse(str_detect(speech, regex("thug", ignore_case = TRUE)), 1, 0)) %>%
+  group_by(session) %>%
+  summarize(freq = mean(freq)) %>%
+  ggplot(aes(session, freq, group = 1)) +
+  geom_point() +
+  geom_path(aes(session, freq)) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  theme_cowplot(12)
+#thug|inner-city|inner city|innercity|urban|ghetto|gang
+
+drug %>% filter(!is.na(speakerid)) %>% count(speakerid)
+read_rds("CR_full0.rds") %>% nrow()
+read_rds("CR_full0.rds") %>% count(speakerid) %>% nrow()
+read_rds("all_record.rds") %>% nrow()
+```
 
