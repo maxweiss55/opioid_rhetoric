@@ -25,9 +25,13 @@ library(textmineR)
 library(tm)
 library(fuzzyjoin)
 library(reshape2)
+library(readtext)
+library(scales)
+library(cowplot)
+library(magick)
 ```
 
-```{r Member Frequency Analysis}
+```{r Public Statements Member Frequency Analysis}
 
 #Load in dataset with the date, title, and member for all 809,633 Public Statements scraped from VoteSmart on February 26, 2020
 all <- read_rds('allstatements.rds') %>%
@@ -603,5 +607,42 @@ gram_mem_scores <- sent_gram_scores %>%
   distinct(member, .keep_all = TRUE)
 
 write_rds(gram_mem_scores, "members_natsec.rds")
+
+```
+
+```{r Congressional Record Drug Dataset Creation and Member Frequency Analysis}
+
+#Load in the full dataset of Congressional Record speeches downloaded from Gentzkow, Shapiro, and Taddy 2018.
+#The more up-to-date "Daily" dataset was downloaded and included Congressional Record speeches 1981–2017 (97th to 114th Congress)
+#Gentzkow, Matthew, Jesse M. Shapiro, and Matt Taddy. Congressional Record for the 43rd-114th Congresses: Parsed Speeches and Phrase Counts. Palo Alto, CA: Stanford Libraries [distributor], 2018-01-16. https://data.stanford.edu/congress_text
+#Note: this is a large dataset
+cr <- read_rds("all_record.rds")
+
+cr_drugs <- cr %>%
+  mutate(cocaine = str_count(speech, regex("cocaine", ignore_case = TRUE)),
+         meth = str_count(speech, regex(" meth |methamphetamine", ignore_case = TRUE)),
+         opioid = str_count(speech, regex("opioid|opiate", ignore_case = TRUE)),
+         heroin = str_count(speech, regex("heroin ", ignore_case = TRUE)),
+         fentanyl = str_count(speech, regex("fentanyl", ignore_case = TRUE)),
+         all_opioid = str_count(speech, regex("opioid|opiate|heroin |fentanyl", ignore_case = TRUE)),
+         all_drug_eps = str_count(speech, regex("opioid|opiate| meth |methamphetamine|cocaine|heroin |fentanyl", ignore_case = TRUE)))
+         
+cr_drug_dataset <- cr_drugs %>%
+  filter(all_drug_eps != 0)
+
+write_rds(cr_drug_dataset, "cr_drugs.rds")
+
+cr_memcount_drug <- cr_drug_dataset %>%
+  count(member) %>%
+  rename(drugs = n)
+
+cr_memcount <- cr %>%
+  count(member) %>%
+  rename(total = n) %>%
+  left_join(cr_memcount_drug) %>%
+  mutate(drugs = ifelse(is.na(drugs), 0, drugs)) %>%
+  mutate(prop = drugs / total)
+
+write_rds(cr_memcount, "freq_CR.rds")
 
 ```
