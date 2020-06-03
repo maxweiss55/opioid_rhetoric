@@ -616,16 +616,94 @@ write_rds(gram_mem_scores, "members_natsec.rds")
 #The more up-to-date "Daily" dataset was downloaded and included Congressional Record speeches 1981–2017 (97th to 114th Congress)
 #Gentzkow, Matthew, Jesse M. Shapiro, and Matt Taddy. Congressional Record for the 43rd-114th Congresses: Parsed Speeches and Phrase Counts. Palo Alto, CA: Stanford Libraries [distributor], 2018-01-16. https://data.stanford.edu/congress_text
 #Note: this is a large dataset
-cr <- read_rds("all_record.rds")
+cr <- read_rds("all_record.rds") 
 
-cr_drugs <- cr %>%
-  mutate(cocaine = str_count(speech, regex("cocaine", ignore_case = TRUE)),
-         meth = str_count(speech, regex(" meth |methamphetamine", ignore_case = TRUE)),
-         opioid = str_count(speech, regex("opioid|opiate", ignore_case = TRUE)),
-         heroin = str_count(speech, regex("heroin ", ignore_case = TRUE)),
-         fentanyl = str_count(speech, regex("fentanyl", ignore_case = TRUE)),
-         all_opioid = str_count(speech, regex("opioid|opiate|heroin |fentanyl", ignore_case = TRUE)),
-         all_drug_eps = str_count(speech, regex("opioid|opiate| meth |methamphetamine|cocaine|heroin |fentanyl", ignore_case = TRUE)))
+cr <- cr %>%
+    mutate(cocaine = NA_character_) %>%
+    mutate(meth = NA_character_) %>%
+    mutate(opioid = NA_character_) %>%
+    mutate(heroin = NA_character_) %>%
+    mutate(fentanyl = NA_character_)
+  
+for (i in c(1:nrow(cr))) {
+
+  cr$cocaine[i] <- str_count(cr$speech[i], regex("cocaine", ignore_case = TRUE))
+  
+  if (i %% 100 == 0) {
+    print(i)
+  }
+}
+  cr$meth[i] <- str_count(cr$speech[i], regex(" meth |methamphetamine", ignore_case = TRUE))
+  cr$opioid[i] <- str_count(cr$speech[i], regex("opioid|opiate", ignore_case = TRUE))
+  cr$heroin[i] <- str_count(cr$speech[i], regex("heroin ", ignore_case = TRUE))
+  cr$fentanyl[i] <- str_count(cr$speech[i], regex("fentanyl", ignore_case = TRUE))
+
+
+
+
+cr1 <- cr %>%
+  filter(row_number() < 1300000)
+cr2 <- cr %>%
+  filter(row_number() > 1300000 & row_number() < 2600000)
+cr3 <- cr %>%
+  filter(row_number() > 2600000)
+
+cr1 <- cr1 %>%
+  mutate(cocaine = str_count(speech, regex("cocaine", ignore_case = TRUE)))
+
+cr1 <- cr1 %>%
+  mutate(meth = str_count(speech, regex(" meth |methamphetamine", ignore_case = TRUE)))
+
+cr1 <- cr1 %>%
+  mutate(opioid = str_count(speech, regex("opioid|opiate", ignore_case = TRUE)))
+
+cr1 <- cr1 %>%
+  mutate(heroin = str_count(speech, regex("heroin ", ignore_case = TRUE)))
+
+cr1 <- cr1 %>%
+  mutate(fentanyl = str_count(speech, regex("fentanyl", ignore_case = TRUE)))
+
+cr1 <- cr1 %>%
+  mutate(all_opioid = opioid + heroin + fentanyl,
+         all_drug_eps = opioid + heroin + fentanyl + cocaine + meth)
+
+cr2 <- cr2 %>%
+  mutate(cocaine = str_count(speech, regex("cocaine", ignore_case = TRUE)))
+
+cr2 <- cr2 %>%
+  mutate(meth = str_count(speech, regex(" meth |methamphetamine", ignore_case = TRUE)))
+
+cr2 <- cr2 %>%
+  mutate(opioid = str_count(speech, regex("opioid|opiate", ignore_case = TRUE)))
+
+cr2 <- cr2 %>%
+  mutate(heroin = str_count(speech, regex("heroin ", ignore_case = TRUE)))
+
+cr2 <- cr2 %>%
+  mutate(fentanyl = str_count(speech, regex("fentanyl", ignore_case = TRUE)))
+
+cr2 <- cr2 %>%
+  mutate(all_opioid = opioid + heroin + fentanyl,
+         all_drug_eps = opioid + heroin + fentanyl + cocaine + meth)
+
+cr3 <- cr3 %>%
+  mutate(cocaine = str_count(speech, regex("cocaine", ignore_case = TRUE)))
+
+cr3 <- cr3 %>%
+  mutate(meth = str_count(speech, regex(" meth |methamphetamine", ignore_case = TRUE)))
+
+cr3 <- cr3 %>%
+  mutate(opioid = str_count(speech, regex("opioid|opiate", ignore_case = TRUE)))
+
+cr3 <- cr3 %>%
+  mutate(heroin = str_count(speech, regex("heroin ", ignore_case = TRUE)))
+
+cr3 <- cr3 %>%
+  mutate(fentanyl = str_count(speech, regex("fentanyl", ignore_case = TRUE)))
+
+cr3 <- cr3 %>%
+  mutate(all_opioid = opioid + heroin + fentanyl,
+         all_drug_eps = opioid + heroin + fentanyl + cocaine + meth)
          
 cr_drug_dataset <- cr_drugs %>%
   filter(all_drug_eps != 0)
@@ -645,4 +723,6 @@ cr_memcount <- cr %>%
 
 write_rds(cr_memcount, "freq_CR.rds")
 
+head(cr, 2)
+cr[1,]
 ```
