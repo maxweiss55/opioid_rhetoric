@@ -94,7 +94,7 @@ memcounts <- left_join(all_memcount, opioid_memcount) %>%
   arrange(desc(prop))
 
 #Load in the key that relates congress member identifiers and information `full name` to their processed (special characters removed, all lowercase) name from VoteSmart `member`
-#This key was constructed manually for all 536 voting members of the 116th Congress
+#This key was constructed manually for all 536 voting members of the 116th Congress through matching with the dataset provided: https://github.com/unitedstates/congress-legislators
 legkey <- read_csv("legkey.csv")
 
 #Join the member relative frequency dataset to member key to add standardized identifiers
@@ -461,7 +461,7 @@ sentence_matrix <- score_matrix(df)
 
 #Sentence and Member Scoring -  sentences with no informative terms (NA) removed
 #Score sentences
-sent_gram_scores <- rbind(three, two, one) %>%
+sent_gram_scores <- sentence_matrix %>%
   #Group by sentence
   group_by(sentence_id) %>%
   #Take the mean of the code from each ngram in the sentence
@@ -611,118 +611,194 @@ write_rds(gram_mem_scores, "members_natsec.rds")
 ```
 
 ```{r Congressional Record Drug Dataset Creation and Member Frequency Analysis}
+#CREATION
 
-#Load in the full dataset of Congressional Record speeches downloaded from Gentzkow, Shapiro, and Taddy 2018.
+#Load in the full dataset of Congressional Record speeches downloaded from Gentzkow, Shapiro, and Taddy 2018. Speech and member metadata were joined with this dataset.
 #The more up-to-date "Daily" dataset was downloaded and included Congressional Record speeches 1981–2017 (97th to 114th Congress)
 #Gentzkow, Matthew, Jesse M. Shapiro, and Matt Taddy. Congressional Record for the 43rd-114th Congresses: Parsed Speeches and Phrase Counts. Palo Alto, CA: Stanford Libraries [distributor], 2018-01-16. https://data.stanford.edu/congress_text
-#Note: this is a large dataset
+#Note: This is a very large dataset, due primarily to the large amount of text data. Loading in the original dataset and executing the commands to create the Congressional Record drug speeches subset runs high risk of system failure/crashing. We do not recommend attempting, so we have provided an inclusive confirmation of our drug speeches data below.
 cr <- read_rds("all_record.rds") 
 
-cr <- cr %>%
-    mutate(cocaine = NA_character_) %>%
-    mutate(meth = NA_character_) %>%
-    mutate(opioid = NA_character_) %>%
-    mutate(heroin = NA_character_) %>%
-    mutate(fentanyl = NA_character_)
-  
-for (i in c(1:nrow(cr))) {
+#This was thde code used to filter and count the full Congressional Record dataset for drugs
+#cr_drug <- cr %>%
+#  Count the number of times each specific drug group is mentioned
+#  mutate(cocaine = str_count(speech, regex("cocaine", ignore_case = TRUE))) %>%
+#  mutate(meth = str_count(speech, regex(" meth |methamphetamine", ignore_case = TRUE))) %>%
+#  mutate(opioid = str_count(speech, regex("opioid|opiate", ignore_case = TRUE))) %>%
+#  mutate(heroin = str_count(speech, regex("heroin ", ignore_case = TRUE))) %>%
+#  mutate(fentanyl = str_count(speech, regex("fentanyl", ignore_case = TRUE))) %>%
+#  If any of the drug terms were detected, retain the speech in the dataset
+#  filter(cocaine + meth + opioid + heroin + fentanyl != 0) %>%
+#  After filtering, we tallied the number of times the term "crack" was used. This was not completed pre-filtering because we believed "crack" is a term not always associated with "cocaine" and drugs. We did not want to include erroneous speeches in the dataset, but we did want to get a count of the number of times the term "crack" was used within the filtered dataset. Therefore, many of the tallied instances of "crack" may not be used in reference to "cocaine", but inclusion of the term "crack" was not enough for inclusion in the dataset.
+#  mutate(crack = str_count(speech, regex("crack", ignore_case = TRUE))) %>%
+#  Create a column that sums the number of drug terms found in the dataset
+#  mutate(all_drugs = opioid + heroin + fentanyl + cocaine + meth + crack)
 
-  cr$cocaine[i] <- str_count(cr$speech[i], regex("cocaine", ignore_case = TRUE))
-  
-  if (i %% 100 == 0) {
-    print(i)
-  }
+#Load in the Congressional Record Drug Speeches dataset created above. 7339 speeches are included.
+cr_drug <- read_rds("drug_record.rds")
+
+#The following workflow confirms all counts are consistent with the string search methods we used to create the dataset. If there are any inconsistencies, then the workflow will return "FALSE". This confirmation cannot demonstrate that all speeches that should have been included were included, but it can show that the speeches included in the dataset are all consistent with the workflow indicated above to produce the dataset. Again, this (admittedly somewhat convoluted) confirmation workflow is provided to prevent the computers/R terminal of those attempting to recreate our results from crashing/aborting, while allowing for transparency in our methodology.
+cr_drug_confirm <- cr_drug %>%
+  #Count the number of times each specific drug group is mentioned  
+  mutate(cocaine_confirm = str_count(speech, regex("cocaine", ignore_case = TRUE))) %>%
+  mutate(meth_confirm = str_count(speech, regex(" meth |methamphetamine", ignore_case = TRUE))) %>%
+  mutate(opioid_confirm = str_count(speech, regex("opioid|opiate", ignore_case = TRUE))) %>%
+  mutate(heroin_confirm = str_count(speech, regex("heroin ", ignore_case = TRUE))) %>%
+  mutate(fentanyl_confirm = str_count(speech, regex("fentanyl", ignore_case = TRUE))) %>%
+  #If these columns match those in those corresponding in the dataframe: TRUE, else: FALSE
+  mutate(confirmation = ifelse(cocaine_confirm == cocaine &
+                               meth_confirm == meth &
+                               opioid_confirm == opioid &
+                               heroin_confirm == heroin &
+                               fentanyl_confirm == fentanyl,
+                               TRUE, FALSE)) %>%
+  #Filtered in this step, leave this out for confirmation purposes
+  #filter(cocaine + meth + opioid + heroin + fentanyl != 0)
+  #Count the number of times "crack" is mentioned  
+  mutate(crack_confirm = str_count(speech, regex("crack", ignore_case = TRUE))) %>%
+  #Create a column that sums the number of drug terms found in the dataset
+  mutate(all_drugs_confirm = opioid + heroin + fentanyl + cocaine + meth + crack) %>%
+  #If these columns match those in those corresponding in the dataframe: TRUE, else: FALSE
+  mutate(confirmation = ifelse(all_drugs_confirm == all_drugs &
+                               crack_confirm == crack,
+                               confirmation, FALSE))
+if (length(cr_drug_confirm$confirmation[cr_drug_confirm$confirmation == FALSE]) > 0) {
+  print("FALSE")
+} else {
+  print("TRUE")
 }
-  cr$meth[i] <- str_count(cr$speech[i], regex(" meth |methamphetamine", ignore_case = TRUE))
-  cr$opioid[i] <- str_count(cr$speech[i], regex("opioid|opiate", ignore_case = TRUE))
-  cr$heroin[i] <- str_count(cr$speech[i], regex("heroin ", ignore_case = TRUE))
-  cr$fentanyl[i] <- str_count(cr$speech[i], regex("fentanyl", ignore_case = TRUE))
 
 
+#FREQUENCY ANALYSIS
 
+#Load in key that relates Congressional Record "speakerid" to their associated unique identifiers. 
+#The creators of the original dataset (Gentzkow, Shapiro, and Taddy 2018) indexed their members using the dataset provided in "https://github.com/unitedstates/congress-legislators" by first name, last name, state, etc. This meant we were able to join the publicly available dataset of identifiers to our dataset easily for the vast majority of legislators; however, there were a number of father-son pairs that had both served in Congress during the period of interest from the same state with the same first and last name. These members had to be matched to their identifiers manually. If interested, the manually matched speakerids appear at the end of the dataset (after a row that contains "NA" for all columns).
+#Many speeches were not attributed to a member of Congress in the original dataset. This was most frequently due to the speech originating from a clerk or other non-member speaking in Congress but may also be due to scraping error in the original dataset,
+key <- read_csv("key_CR.csv") %>%
+  mutate(speakerid = as.character(speakerid)) %>%
+  #Select only connecting identifiers for the time being
+  select(speakerid, govtrack_id)
 
-cr1 <- cr %>%
-  filter(row_number() < 1300000)
-cr2 <- cr %>%
-  filter(row_number() > 1300000 & row_number() < 2600000)
-cr3 <- cr %>%
-  filter(row_number() > 2600000)
+#Load in the Congressional Record Drug Speeches dataset created above. 7339 speeches are included.
+cr_drug <- read_rds("drug_record.rds")
+#Join the Congressional Record Drug Speeches dataset with member identifiers and metadata
+cr_drug <- cr_drug %>%
+  left_join(key, by = "speakerid")
 
-cr1 <- cr1 %>%
-  mutate(cocaine = str_count(speech, regex("cocaine", ignore_case = TRUE)))
-
-cr1 <- cr1 %>%
-  mutate(meth = str_count(speech, regex(" meth |methamphetamine", ignore_case = TRUE)))
-
-cr1 <- cr1 %>%
-  mutate(opioid = str_count(speech, regex("opioid|opiate", ignore_case = TRUE)))
-
-cr1 <- cr1 %>%
-  mutate(heroin = str_count(speech, regex("heroin ", ignore_case = TRUE)))
-
-cr1 <- cr1 %>%
-  mutate(fentanyl = str_count(speech, regex("fentanyl", ignore_case = TRUE)))
-
-cr1 <- cr1 %>%
-  mutate(all_opioid = opioid + heroin + fentanyl,
-         all_drug_eps = opioid + heroin + fentanyl + cocaine + meth)
-
-cr2 <- cr2 %>%
-  mutate(cocaine = str_count(speech, regex("cocaine", ignore_case = TRUE)))
-
-cr2 <- cr2 %>%
-  mutate(meth = str_count(speech, regex(" meth |methamphetamine", ignore_case = TRUE)))
-
-cr2 <- cr2 %>%
-  mutate(opioid = str_count(speech, regex("opioid|opiate", ignore_case = TRUE)))
-
-cr2 <- cr2 %>%
-  mutate(heroin = str_count(speech, regex("heroin ", ignore_case = TRUE)))
-
-cr2 <- cr2 %>%
-  mutate(fentanyl = str_count(speech, regex("fentanyl", ignore_case = TRUE)))
-
-cr2 <- cr2 %>%
-  mutate(all_opioid = opioid + heroin + fentanyl,
-         all_drug_eps = opioid + heroin + fentanyl + cocaine + meth)
-
-cr3 <- cr3 %>%
-  mutate(cocaine = str_count(speech, regex("cocaine", ignore_case = TRUE)))
-
-cr3 <- cr3 %>%
-  mutate(meth = str_count(speech, regex(" meth |methamphetamine", ignore_case = TRUE)))
-
-cr3 <- cr3 %>%
-  mutate(opioid = str_count(speech, regex("opioid|opiate", ignore_case = TRUE)))
-
-cr3 <- cr3 %>%
-  mutate(heroin = str_count(speech, regex("heroin ", ignore_case = TRUE)))
-
-cr3 <- cr3 %>%
-  mutate(fentanyl = str_count(speech, regex("fentanyl", ignore_case = TRUE)))
-
-cr3 <- cr3 %>%
-  mutate(all_opioid = opioid + heroin + fentanyl,
-         all_drug_eps = opioid + heroin + fentanyl + cocaine + meth)
-         
-cr_drug_dataset <- cr_drugs %>%
-  filter(all_drug_eps != 0)
-
-write_rds(cr_drug_dataset, "cr_drugs.rds")
-
-cr_memcount_drug <- cr_drug_dataset %>%
-  count(member) %>%
+#Count the number of speeches from each member were included in the Drug Speeches dataset.
+cr_memcount_drug <- cr_drug %>%
+  count(govtrack_id) %>%
+  #Name the tallying row "drugs"
   rename(drugs = n)
 
+#Load in the full dataset of Congressional Record speeches
+cr <- read_rds("all_record.rds") 
+
+#Build a dataset that indicates the number of drug speeches as a share of total speeches in the original dataset
 cr_memcount <- cr %>%
-  count(member) %>%
+  left_join(key, by = "speakerid") %>%
+  #Count the number of speeches from each member in the original Congressional Record speeches dataset
+  count(govtrack_id) %>%
+  #Name the tallying row "total"
   rename(total = n) %>%
+  #Join the previously built drug speeches member frequency dataset
   left_join(cr_memcount_drug) %>%
+  #Replace the value of "drugs" for any member where no drug speeches detected to a zero
   mutate(drugs = ifelse(is.na(drugs), 0, drugs)) %>%
-  mutate(prop = drugs / total)
+  #Find the proportion of total speeches from each member that were speeches about drugs
+  mutate(prop = drugs / total) %>%
+  arrange(desc(prop))
 
-write_rds(cr_memcount, "freq_CR.rds")
+#Join frequency dataset to full key of identifiers and member metadata
+key <- read_csv("key_CR.csv") %>%
+  mutate(speakerid = as.character(speakerid))
+cr_memcount <- cr_memcount %>%
+  left_join(key, by = "govtrack_id") %>%
+  #Only include one count for each member (otherwise, the same count will be used for each member-session combination)
+  distinct(govtrack_id, .keep_all = TRUE)
+  
+write_rds(cr_memcount, "CR_frequency.rds")
 
-head(cr, 2)
-cr[1,]
+```
+
+```{r Score Congressional Record Speeches}
+
+#Load in the Congressional Record Drug Speeches dataset for scoring
+df <- read_rds("drug_record.rds") %>%
+  filter(session == 114)
+#Create the scoring matrix object "sentence_matrix" with the Congressional Record Drug Speeches dataset at the argument (input)
+#Remember, "Dictionary_ALL.xlsx" must be in the working directory for the function to work.
+#Additionally, this function seems to work best after clearing one's R environment for whatever reason
+speech_matrix <- score_matrix(df)
+#If function worked correctly, "speech_matrix" should contain 17,024 rows.
+#Metadata about each speech in Congressional Record Drug Speeches dataset fed into the function are retained
+
+#Speech and Member Scoring -  speeches with no informative terms (NA) removed
+#Score speeches
+sent_gram_scores <- rbind(three, two, one) %>%
+  #Group by speech
+  group_by(sentence_id) %>%
+  #Take the mean of the code from each ngram in the sentence
+  summarise(sent_score = mean(code)) %>%
+  #Retrieve all original sentences and join to them scores where relevant (i.e. not NA)
+  right_join(sent_id) %>%
+  #Remove all scores of NA
+  filter(!is.na(sent_score))
+  #In order to retain sentences where no informative n-grams were detected (treat NA values as arithmetic zeroes), remove the line of code above, and instead use the line of code commented out below
+  #mutate(sent_score = ifelse(is.na(sent_score), 0, sent_score))
+
+#Save file with scored Public Statement sentences
+write_rds(sent_gram_scores, "sentences_fullNA.rds")
+
+#Score members
+gram_mem_scores <- sent_gram_scores %>%
+  #Group by member
+  group_by(member) %>%
+  #Take the mean of each member
+  summarise(mem_score = mean(sent_score)) %>%
+  #Retrieve all original sentences and join to them member scores (this is only to retrieve the member information, we end up with many redundant rows which will be deleted at the end of piping with distinct() function)
+  right_join(sent_id, by = "member") %>%
+  #Remove members not represented in the sentence scoring
+  filter(!is.na(mem_score)) %>%
+  #Remove unimportant columns
+  select(-date, -title, -path, -text, -year, -day, -month, -sentence_id) %>%
+  #Only keep one of the duplicated rows for each member
+  distinct(member, .keep_all = TRUE)
+
+#Save file with the average scores for each member
+write_rds(gram_mem_scores, "members_fullNA.rds")
+
+```
+
+```{r freq plots}
+
+drug <- read_rds("drug_record.rds")
+key <- read_csv("key_CR.csv") %>%
+  mutate(speakerid = as.character(speakerid))
+drug1 <- drug %>%
+  left_join(key, by = "speakerid") 
+
+drug1 %>%
+  filter(!is.na(speakerid) & (party != "N" & party != "I")) %>%
+  mutate(date = ymd(date)) %>%
+  mutate(freq = ifelse(str_detect(speech, regex("crime", ignore_case = TRUE)), 1, 0)) %>%
+  ggplot(aes(date, freq, color = party, group = party)) +
+  geom_smooth(aes(group = party), se = FALSE, method = "gam", formula = y ~ s(x, bs = "cs"), show.legend = FALSE) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  scale_color_manual(breaks = c("R", "D"),
+                        values=c("red", "blue")) +
+  theme_cowplot(12)
+
+drug1 %>%
+  filter(!is.na(speakerid) & (party != "N" & party != "I")) %>%
+  mutate(date = ymd(date)) %>%
+  mutate(freq = ifelse(str_detect(speech, regex("thug", ignore_case = TRUE)), 1, 0)) %>%
+  group_by(session) %>%
+  summarize(freq = mean(freq)) %>%
+  ggplot(aes(session, freq, group = 1)) +
+  geom_point() +
+  geom_path(aes(session, freq)) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  theme_cowplot(12)
+#thug|inner-city|inner city|innercity|urban|ghetto|gang
 ```
