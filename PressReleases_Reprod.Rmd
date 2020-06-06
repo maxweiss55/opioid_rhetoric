@@ -441,8 +441,7 @@ one <- sent_id2 %>%
   inner_join(dict_all)
 
 matrix <- rbind(three, two, one) %>%
-  arrange(sentence_id) %>%
-  select(sentence_id, word, code, date, member, title, path)
+  arrange(sentence_id)
 return(matrix)
 }
 
@@ -454,10 +453,14 @@ return(matrix)
 df <- read_rds("sentences_116th.rds")
 #Create the scoring matrix object "sentence_matrix" with the Public Statement Sentences dataset at the argument (input)
 #Remember, "Dictionary_ALL.xlsx" must be in the working directory for the function to work.
-#Additionally, this function seems to work best after clearing one's R environment for whatever reason
+#Additionally, this function seems to work best after clearing one's R environment for whatever reason (restart R, run function building chunk, run function here)
 sentence_matrix <- score_matrix(df)
 #If function worked correctly, "sentence_matrix" should contain 17,024 rows.
 #Metadata about each Public Statement in Public Statement Sentences dataset fed into the function are retained
+
+#Create dataframe with all sentences labelled by row number for joining in next scoring step
+sent_id <- df %>%
+  mutate(sentence_id = row_number())
 
 #Sentence and Member Scoring -  sentences with no informative terms (NA) removed
 #Score sentences
@@ -487,7 +490,7 @@ gram_mem_scores <- sent_gram_scores %>%
   #Remove members not represented in the sentence scoring
   filter(!is.na(mem_score)) %>%
   #Remove unimportant columns
-  select(-date, -title, -path, -text, -year, -day, -month, -sentence_id) %>%
+  select(-date, -title, -path, -text, -sentence_id) %>%
   #Only keep one of the duplicated rows for each member
   distinct(member, .keep_all = TRUE)
 
@@ -725,18 +728,30 @@ write_rds(cr_memcount, "CR_frequency.rds")
 
 #Load in the Congressional Record Drug Speeches dataset for scoring
 df <- read_rds("drug_record.rds") %>%
-  filter(session == 114)
+  filter(session == 114) %>%
+  #Rename `speech` variable to `text` to mark as document for scoring in function
+  rename(text = speech)
+#Add metadata and identifiers to dataset
+key <- read_csv("key_CR.csv") %>%
+  mutate(speakerid = as.character(speakerid))
+df <- df %>%
+  left_join(key, by = "speakerid")
 #Create the scoring matrix object "sentence_matrix" with the Congressional Record Drug Speeches dataset at the argument (input)
 #Remember, "Dictionary_ALL.xlsx" must be in the working directory for the function to work.
-#Additionally, this function seems to work best after clearing one's R environment for whatever reason
-speech_matrix <- score_matrix(df)
-#If function worked correctly, "speech_matrix" should contain 17,024 rows.
+#Additionally, this function seems to work best after clearing one's R environment for whatever reason (restart R, run function building chunk, run function here)
+#Note: Objects and variables were often named in this workflow referring to each document as "sent" or "sentences" instead of "speech". The purpose of this was to coordinate with function built originally for scoring sentences in the Press Releases.
+sentence_matrix <- score_matrix(df)
+#If function worked correctly, "speech_matrix" should contain 14,263 rows.
 #Metadata about each speech in Congressional Record Drug Speeches dataset fed into the function are retained
 
-#Speech and Member Scoring -  speeches with no informative terms (NA) removed
-#Score speeches
-sent_gram_scores <- rbind(three, two, one) %>%
-  #Group by speech
+#Create dataframe with all speeches labelled by row number for joining in next scoring step
+sent_id <- df %>%
+  mutate(sentence_id = row_number())
+
+#Sentence and Member Scoring -  sentences with no informative terms (NA) removed
+#Score sentences
+sent_gram_scores <- sentence_matrix %>%
+  #Group by sentence
   group_by(sentence_id) %>%
   #Take the mean of the code from each ngram in the sentence
   summarise(sent_score = mean(code)) %>%
@@ -748,27 +763,29 @@ sent_gram_scores <- rbind(three, two, one) %>%
   #mutate(sent_score = ifelse(is.na(sent_score), 0, sent_score))
 
 #Save file with scored Public Statement sentences
-write_rds(sent_gram_scores, "sentences_fullNA.rds")
+write_rds(sent_gram_scores, "cr_speeches_fullNA.rds")
 
 #Score members
 gram_mem_scores <- sent_gram_scores %>%
   #Group by member
-  group_by(member) %>%
+  group_by(govtrack_id) %>%
   #Take the mean of each member
   summarise(mem_score = mean(sent_score)) %>%
   #Retrieve all original sentences and join to them member scores (this is only to retrieve the member information, we end up with many redundant rows which will be deleted at the end of piping with distinct() function)
-  right_join(sent_id, by = "member") %>%
+  right_join(sent_id, by = "govtrack_id") %>%
   #Remove members not represented in the sentence scoring
   filter(!is.na(mem_score)) %>%
   #Remove unimportant columns
-  select(-date, -title, -path, -text, -year, -day, -month, -sentence_id) %>%
+  select(-date, -text, -speech_id, sentence_id) %>%
   #Only keep one of the duplicated rows for each member
-  distinct(member, .keep_all = TRUE)
+  distinct(govtrack_id, .keep_all = TRUE)
 
 #Save file with the average scores for each member
-write_rds(gram_mem_scores, "members_fullNA.rds")
+write_rds(gram_mem_scores, "cr_members_fullNA.rds")
 
 ```
+
+
 
 ```{r freq plots}
 
