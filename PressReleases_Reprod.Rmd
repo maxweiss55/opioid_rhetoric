@@ -784,38 +784,3 @@ gram_mem_scores <- sent_gram_scores %>%
 write_rds(gram_mem_scores, "cr_members_fullNA.rds")
 
 ```
-
-
-
-```{r freq plots}
-
-drug <- read_rds("drug_record.rds")
-key <- read_csv("key_CR.csv") %>%
-  mutate(speakerid = as.character(speakerid))
-drug1 <- drug %>%
-  left_join(key, by = "speakerid") 
-
-drug1 %>%
-  filter(!is.na(speakerid) & (party != "N" & party != "I")) %>%
-  mutate(date = ymd(date)) %>%
-  mutate(freq = ifelse(str_detect(speech, regex("crime", ignore_case = TRUE)), 1, 0)) %>%
-  ggplot(aes(date, freq, color = party, group = party)) +
-  geom_smooth(aes(group = party), se = FALSE, method = "gam", formula = y ~ s(x, bs = "cs"), show.legend = FALSE) +
-  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-  scale_color_manual(breaks = c("R", "D"),
-                        values=c("red", "blue")) +
-  theme_cowplot(12)
-
-drug1 %>%
-  filter(!is.na(speakerid) & (party != "N" & party != "I")) %>%
-  mutate(date = ymd(date)) %>%
-  mutate(freq = ifelse(str_detect(speech, regex("thug", ignore_case = TRUE)), 1, 0)) %>%
-  group_by(session) %>%
-  summarize(freq = mean(freq)) %>%
-  ggplot(aes(session, freq, group = 1)) +
-  geom_point() +
-  geom_path(aes(session, freq)) +
-  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-  theme_cowplot(12)
-#thug|inner-city|inner city|innercity|urban|ghetto|gang
-```
