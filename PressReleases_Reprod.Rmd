@@ -724,63 +724,41 @@ write_rds(cr_memcount, "CR_frequency.rds")
 
 ```
 
-```{r Score Congressional Record Speeches}
+```{r Congressional Record Speech Images}
 
-#Load in the Congressional Record Drug Speeches dataset for scoring
-df <- read_rds("drug_record.rds") %>%
-  filter(session == 114) %>%
-  #Rename `speech` variable to `text` to mark as document for scoring in function
-  rename(text = speech)
-#Add metadata and identifiers to dataset
+#Load in Congressional Record Drug Speeches
+drug <- read_rds("drug_record.rds")
+#Load in key for Congressional Record identifiers and metadata
 key <- read_csv("key_CR.csv") %>%
   mutate(speakerid = as.character(speakerid))
-df <- df %>%
-  left_join(key, by = "speakerid")
-#Create the scoring matrix object "sentence_matrix" with the Congressional Record Drug Speeches dataset at the argument (input)
-#Remember, "Dictionary_ALL.xlsx" must be in the working directory for the function to work.
-#Additionally, this function seems to work best after clearing one's R environment for whatever reason (restart R, run function building chunk, run function here)
-#Note: Objects and variables were often named in this workflow referring to each document as "sent" or "sentences" instead of "speech". The purpose of this was to coordinate with function built originally for scoring sentences in the Press Releases.
-sentence_matrix <- score_matrix(df)
-#If function worked correctly, "speech_matrix" should contain 14,263 rows.
-#Metadata about each speech in Congressional Record Drug Speeches dataset fed into the function are retained
+#Join the two dataframes above
+drug1 <- drug %>%
+  left_join(key, by = "speakerid") 
 
-#Create dataframe with all speeches labelled by row number for joining in next scoring step
-sent_id <- df %>%
-  mutate(sentence_id = row_number())
+#Build the session tally line graph for a given string.
+#To build the graph for a different string or combination of strings, simply exchange for the string indicated to build the `freq` column using regex conventions
+drug1 %>%
+  filter(!is.na(speakerid) & (party != "N" & party != "I")) %>%
+  mutate(date = ymd(date)) %>%
+  mutate(freq = ifelse(str_detect(speech, regex("string", ignore_case = TRUE)), 1, 0)) %>%
+  group_by(session) %>%
+  summarize(freq = mean(freq)) %>%
+  ggplot(aes(session, freq, group = 1)) +
+  geom_point() +
+  geom_path(aes(session, freq)) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  theme_cowplot(12)
 
-#Sentence and Member Scoring -  sentences with no informative terms (NA) removed
-#Score sentences
-sent_gram_scores <- sentence_matrix %>%
-  #Group by sentence
-  group_by(sentence_id) %>%
-  #Take the mean of the code from each ngram in the sentence
-  summarise(sent_score = mean(code)) %>%
-  #Retrieve all original sentences and join to them scores where relevant (i.e. not NA)
-  right_join(sent_id) %>%
-  #Remove all scores of NA
-  filter(!is.na(sent_score))
-  #In order to retain sentences where no informative n-grams were detected (treat NA values as arithmetic zeroes), remove the line of code above, and instead use the line of code commented out below
-  #mutate(sent_score = ifelse(is.na(sent_score), 0, sent_score))
-
-#Save file with scored Public Statement sentences
-write_rds(sent_gram_scores, "cr_speeches_fullNA.rds")
-
-#Score members
-gram_mem_scores <- sent_gram_scores %>%
-  #Group by member
-  group_by(govtrack_id) %>%
-  #Take the mean of each member
-  summarise(mem_score = mean(sent_score)) %>%
-  #Retrieve all original sentences and join to them member scores (this is only to retrieve the member information, we end up with many redundant rows which will be deleted at the end of piping with distinct() function)
-  right_join(sent_id, by = "govtrack_id") %>%
-  #Remove members not represented in the sentence scoring
-  filter(!is.na(mem_score)) %>%
-  #Remove unimportant columns
-  select(-date, -text, -speech_id, sentence_id) %>%
-  #Only keep one of the duplicated rows for each member
-  distinct(govtrack_id, .keep_all = TRUE)
-
-#Save file with the average scores for each member
-write_rds(gram_mem_scores, "cr_members_fullNA.rds")
-
+#Build the plot for relative frequency of string use over time subset by party (only major parties Republicans "R" and Democrats "D" used)
+#To build the graph for a different string or combination of strings, simply exchange for the string indicated to build the `freq` column using regex conventions
+drug1 %>%
+  filter(!is.na(speakerid) & (party != "N" & party != "I")) %>%
+  mutate(date = ymd(date)) %>%
+  mutate(freq = ifelse(str_detect(speech, regex("string", ignore_case = TRUE)), 1, 0)) %>%
+  ggplot(aes(date, freq, color = party, group = party)) +
+  geom_smooth(aes(group = party), se = FALSE, method = "gam", formula = y ~ s(x, bs = "cs"), show.legend = FALSE) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  scale_color_manual(breaks = c("R", "D"),
+                        values=c("red", "blue")) +
+  theme_cowplot(12)
 ```
