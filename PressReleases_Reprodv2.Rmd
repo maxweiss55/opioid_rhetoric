@@ -1,5 +1,5 @@
 ---
-title: "PressReleases_Reprod"
+title: "Max_Reprod"
 author: "Max Weiss"
 date: "5/27/2020"
 output: html_document
@@ -717,51 +717,5 @@ cr_memcount <- cr_memcount %>%
   distinct(govtrack_id, .keep_all = TRUE)
   
 write_rds(cr_memcount, "CR_frequency.rds")
-
-```
-
-```{r Congressional Record Speech Images}
-#This chunk builds the eight component graphs in Figure 2.
-
-#Load in Congressional Record Drug Speeches
-drug <- read_rds("drug_record.rds")
-#Load in key for Congressional Record identifiers and metadata
-key <- read_csv("key_CR.csv") %>%
-  mutate(speakerid = as.character(speakerid))
-#Join the two dataframes above
-drug1 <- drug %>%
-  left_join(key, by = "speakerid") 
-
-#Build two line graphs. The first graph plots the relative frequency of speeches that includes the string "cocaine" in each session of Congress. The second graph plots the same but for the string "opioid".
-for (i in c("cocaine", "opioid")){
-graph <- drug1 %>%
-  filter(!is.na(speakerid) & (party != "N" & party != "I")) %>%
-  mutate(date = ymd(date)) %>%
-  mutate(freq = ifelse(str_detect(speech, regex(i, ignore_case = TRUE)), 1, 0)) %>%
-  group_by(session) %>%
-  summarize(freq = mean(freq)) %>%
-  ggplot(aes(session, freq, group = 1)) +
-  geom_point() +
-  geom_path(aes(session, freq)) +
-  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-  theme_cowplot(12)
-print(graph)
-}
-
-#This for loop builds six graphs, one for each law enforcement or public health drug framing string of interest. The graphs plot the relative frequency of speeches that includes the string over time subset by party (only major parties Republicans "R" and Democrats "D" used).
-#These graphs are created by plotting each speech as a binary "includes" (1) or "does not include" (0) and fitting with the GAM function.
-for (i in c("traffick", "war on drugs|war against drugs", "crime|criminal", "recover", "treatment", "pain")){
-graph <- drug1 %>%
-  filter(!is.na(speakerid) & (party != "N" & party != "I")) %>%
-  mutate(date = ymd(date)) %>%
-  mutate(freq = ifelse(str_detect(speech, regex(i, ignore_case = TRUE)), 1, 0)) %>%
-  ggplot(aes(date, freq, color = party, group = party)) +
-  geom_smooth(aes(group = party), se = FALSE, method = "gam", formula = y ~ s(x, bs = "cs"), show.legend = FALSE) +
-  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-  scale_color_manual(breaks = c("R", "D"),
-                        values=c("red", "blue")) +
-  theme_cowplot(12)
-print(graph)
-}
 
 ```
