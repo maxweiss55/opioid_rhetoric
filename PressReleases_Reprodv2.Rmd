@@ -670,8 +670,6 @@ if (length(cr_drug_confirm$confirmation[cr_drug_confirm$confirmation == FALSE]) 
 ```
 
 ```{r Congressional Record Drug Dataset Member Frequency Analysis}
-#FREQUENCY ANALYSIS
-
 #Load in key that relates Congressional Record "speakerid" to their associated unique identifiers. 
 #The creators of the original dataset (Gentzkow, Shapiro, and Taddy 2018) indexed their members using the dataset provided in "https://github.com/unitedstates/congress-legislators" by first name, last name, state, etc. This meant we were able to join the publicly available dataset of identifiers to our dataset easily for the vast majority of legislators; however, there were a number of father-son pairs that had both served in Congress during the period of interest from the same state with the same first and last name. These members had to be matched to their identifiers manually. If interested, the manually matched speakerids appear at the end of the dataset (after a row that contains "NA" for all columns).
 #Many speeches were not attributed to a member of Congress in the original dataset. This was most frequently due to the speech originating from a clerk or other non-member speaking in Congress but may also be due to scraping error in the original dataset,
