@@ -75,7 +75,7 @@ opioid <- read_rds('fullscrape.rds') %>%
 opioid_memcount <- opioid %>%
   #Remove observations that are full repeats; 422 (3.13%) repeat observations removed in this step
   distinct() %>%
-  #13,075 Opioid Public Atatememnts remain at this point
+  #13,075 Opioid Public Statememnts remain at this point
   #Tally the number of observations grouped by member
   count(member) %>%
   #Arrange from highest to lowest member count
@@ -325,6 +325,74 @@ write_rds(opioid_sentences2, "sentences_116th.rds")
 
 ```
 
+```{r Build Sentences Dataset All Public Statements}
+
+#Load in dataset with the date, title, member, path, and text for the 13,500 Opioid Public Statements scraped from VoteSmart on February 18, 2020
+opioid <- read_rds('fullscrape.rds') %>%
+  #Remove empty rows
+  filter(!is.na(date) & !is.na(title) & !is.na(member) & !is.na(path) & !is.na(text)) %>%
+  #Filter to include all Public Statements before February 17th
+  mutate(date = as.character(date)) %>%
+  filter(date != "Feb. 18, 2020") %>%
+  #Remove phrase that ended the scraped text of most public statements
+  mutate(text = str_remove_all(text, " All content © 1992 - 2020 Vote Smart unless otherwise attributed - Privacy Policy - Legislative demographic data provided by Aristotle International, Inc. Mobile Version \\#\\{text\\} You are about to be redirected to a secure checkout page. Please note: The total order amount will read \\$0.01. This is a card processor fee. Please know that a recurring donation of the amount and frequency that you selected will be processed and initiated tomorrow. You may see a one-time charge of \\$0.01 on your statement. Continue to secure page »")) %>%
+  #Remove observations that are full repeats
+  distinct()
+#13,075 Opioid Public Statements remain at this point
+
+#Split the text of each Opioid Public Statements by sentence
+opioid_sentences <- opioid %>%
+  #Remove periods that directly follow a capital letter (likely to be an acronym)
+  mutate(text = str_replace_all(text, "(?<=[:upper:])\\.", "")) %>%
+  #Remove periods that are both directly preceded by and directly follow a lowercase letter (likely to be an acronym)
+  mutate(text = str_replace_all(text, "(?<=[:alnum:])\\.(?=[:alnum:])", "")) %>%
+  #Remove the periods from common abbreviations derived through sampling the dataset
+  mutate(text = str_replace_all(text, "Sen\\.", "Sen")) %>%
+  mutate(text = str_replace_all(text, "Rep\\.", "Rep")) %>%
+  mutate(text = str_replace_all(text, "Sens\\.", "Sens")) %>%
+  mutate(text = str_replace_all(text, "Reps\\.", "Reps")) %>%
+  mutate(text = str_replace_all(text, "Mrs\\.", "Mrs")) %>%
+  mutate(text = str_replace_all(text, "Mr\\.", "Mr")) %>%
+  mutate(text = str_replace_all(text, "Ms\\.", "Ms")) %>%
+  mutate(text = str_replace_all(text, "Dr\\.", "Dr")) %>%
+  mutate(text = str_replace_all(text, "Pres\\.", "Pres")) %>%
+  mutate(text = str_replace_all(text, "St\\.", "St")) %>%
+  #The two string replacements (U.S. and U.S.A.) below were not identified as signficant during the 116th Congress sentence splitting process but were identified when investigating the full dataset
+  mutate(text = str_replace_all(text, "U\\.S\\.", "US")) %>%
+  mutate(text = str_replace_all(text, "U\\.S\\.A\\.", "USA")) %>%
+  #Separate Public Statements by end punctuation (periods, question marks, exclammation point) and create a new observation for each separated sentence
+  separate_rows(text, sep = "[.?!]", convert = FALSE) %>%
+  #407,780 split statements derived
+  #Filter to only include split statements that contain language directly associated with opioids
+  filter(str_detect(text, regex("heroin|opioid|opiate|fentanyl|naloxone|narcan|synthetics|oxycodone|hydrocodone|morphine|codeine|methadone|meperidine|buprenorphine|hydromorphone|benzo", ignore_case = TRUE))) %>%
+  #Add a sentence identifier based on row number
+  mutate(sentence_id = row_number())
+  #60,823 split statements about opioids remain
+
+#Replace the bullet point symbol found in many long lists with a period (prepare for splitting). This is an uncommon string pattern that was a feature of lists and should be treated as separate statements. Split sentences with this string into separate sentences.
+opioid_sentences2 <- opioid_sentences %>%
+  mutate(text = str_replace_all(text, "·", "."))  %>%
+  separate_rows(text, sep = "[.?!]", convert = FALSE) %>%
+  mutate(sentence_id = row_number())
+#62,266 sentences remain
+
+#Due to the significantly larger size of the full dataset compared to the 116th Congress dataset, sentence splitting was corrected using a simpler workflow (seeking to reduce error without needing to inductively identify all of the potential sentence splitting issues). As this was the case, we simply removed all sentences that were so long that they were identified as outliers (in base R) or so short that they no longer made sense as a full sentence. Therefore, sentences were removed if their length was greater than 414 characters or less than 25 characters.
+
+opioid_sentences2 <- opioid_sentences2 %>%
+  mutate(count = str_count(text)) %>%
+  filter(count > 24 & count < 415)
+#59,429 sentences remain
+
+#Build histogram of sentence lengths
+length2 <- opioid_sentences2 %>%
+  mutate(count = str_count(text)) %>%
+  arrange(desc(count)) %>%
+  select(text, count)
+hist(length2$count, breaks = 1000)
+
+#Save dataframe to .rds file
+write_rds(opioid_sentences2, "sentences_FULL.rds")
+```
 
 ```{r Scoring Matrix Function}
 
@@ -442,7 +510,7 @@ return(matrix)
 
 ```
 
-```{r Score Public Statement Sentences}
+```{r 116th Congress Score Public Statement Sentences}
 
 #Load in the Public Statement Sentences dataset for scoring
 df <- read_rds("sentences_116th.rds")
@@ -451,6 +519,58 @@ df <- read_rds("sentences_116th.rds")
 #Additionally, this function seems to work best after clearing one's R environment for whatever reason (restart R, run function building chunk, run function here)
 sentence_matrix <- score_matrix(df)
 #If function worked correctly, "sentence_matrix" should contain 17,024 rows.
+#Metadata about each Public Statement in Public Statement Sentences dataset fed into the function are retained
+
+#Create dataframe with all sentences labelled by row number for joining in next scoring step
+sent_id <- df %>%
+  mutate(sentence_id = row_number())
+
+#Sentence and Member Scoring -  sentences with no informative terms (NA) removed
+#Score sentences
+sent_gram_scores <- sentence_matrix %>%
+  #Group by sentence
+  group_by(sentence_id) %>%
+  #Take the mean of the code from each ngram in the sentence
+  summarise(sent_score = mean(code)) %>%
+  #Retrieve all original sentences and join to them scores where relevant (i.e. not NA)
+  right_join(sent_id) %>%
+  #Remove all scores of NA
+  filter(!is.na(sent_score))
+  #In order to retain sentences where no informative n-grams were detected (treat NA values as arithmetic zeroes), remove the line of code above, and instead use the line of code commented out below
+  #mutate(sent_score = ifelse(is.na(sent_score), 0, sent_score))
+
+#Save file with scored Public Statement sentences
+write_rds(sent_gram_scores, "sentences_116NA.rds")
+
+#Score members
+gram_mem_scores <- sent_gram_scores %>%
+  #Group by member
+  group_by(member) %>%
+  #Take the mean of each member
+  summarise(mem_score = mean(sent_score)) %>%
+  #Retrieve all original sentences and join to them member scores (this is only to retrieve the member information, we end up with many redundant rows which will be deleted at the end of piping with distinct() function)
+  right_join(sent_id, by = "member") %>%
+  #Remove members not represented in the sentence scoring
+  filter(!is.na(mem_score)) %>%
+  #Remove unimportant columns
+  select(-date, -title, -path, -text, -sentence_id) %>%
+  #Only keep one of the duplicated rows for each member
+  distinct(member, .keep_all = TRUE)
+
+#Save file with the average scores for each member
+write_rds(gram_mem_scores, "members_116NA.rds")
+
+```
+
+```{r Full Dataset Score Public Statement Sentences}
+
+#Load in the Public Statement Sentences dataset for scoring
+df <- read_rds("sentences_FULL.rds")
+#Create the scoring matrix object "sentence_matrix" with the Public Statement Sentences dataset at the argument (input)
+#Remember, "Dictionary_ALL.xlsx" must be in the working directory for the function to work.
+#Additionally, this function seems to work best after clearing one's R environment for whatever reason (restart R, run function building chunk, run function here)
+sentence_matrix <- score_matrix(df)
+#If function worked correctly, "sentence_matrix" should contain 79,526 rows.
 #Metadata about each Public Statement in Public Statement Sentences dataset fed into the function are retained
 
 #Create dataframe with all sentences labelled by row number for joining in next scoring step
@@ -494,7 +614,7 @@ write_rds(gram_mem_scores, "members_fullNA.rds")
 
 ```
 
-```{r Public Statement Sentences National Security and MAT Key Words}
+```{r 116th Congress Public Statement Sentences National Security and MAT Key Words}
 #The following code scores Public Statement sentences and members based on whether they include at least one term from our specialized dictionaries. The first workflow uses our medication assisted treatment (MAT) dictionary, and the second workflow uses our national security dictionary
 
 #Data Processing Step
@@ -670,52 +790,53 @@ if (length(cr_drug_confirm$confirmation[cr_drug_confirm$confirmation == FALSE]) 
 ```
 
 ```{r Congressional Record Drug Dataset Member Frequency Analysis}
-#Load in key that relates Congressional Record "speakerid" to their associated unique identifiers. 
-#The creators of the original dataset (Gentzkow, Shapiro, and Taddy 2018) indexed their members using the dataset provided in "https://github.com/unitedstates/congress-legislators" by first name, last name, state, etc. This meant we were able to join the publicly available dataset of identifiers to our dataset easily for the vast majority of legislators; however, there were a number of father-son pairs that had both served in Congress during the period of interest from the same state with the same first and last name. These members had to be matched to their identifiers manually. If interested, the manually matched speakerids appear at the end of the dataset (after a row that contains "NA" for all columns).
-#Many speeches were not attributed to a member of Congress in the original dataset. This was most frequently due to the speech originating from a clerk or other non-member speaking in Congress but may also be due to scraping error in the original dataset,
-key <- read_csv("key_CR.csv") %>%
-  mutate(speakerid = as.character(speakerid)) %>%
-  #Select only connecting identifiers for the time being
-  select(speakerid, govtrack_id)
-
-#Load in the Congressional Record Drug Speeches dataset created above. 7339 speeches are included.
-cr_drug <- read_rds("drug_record.rds")
-#Join the Congressional Record Drug Speeches dataset with member identifiers and metadata
-cr_drug <- cr_drug %>%
-  left_join(key, by = "speakerid")
-
-#Count the number of speeches from each member were included in the Drug Speeches dataset.
-cr_memcount_drug <- cr_drug %>%
-  count(govtrack_id) %>%
-  #Name the tallying row "drugs"
-  rename(drugs = n)
-
-#Load in the full dataset of Congressional Record speeches
-cr <- read_rds("all_record.rds") 
-
-#Build a dataset that indicates the number of drug speeches as a share of total speeches in the original dataset
-cr_memcount <- cr %>%
-  left_join(key, by = "speakerid") %>%
-  #Count the number of speeches from each member in the original Congressional Record speeches dataset
-  count(govtrack_id) %>%
-  #Name the tallying row "total"
-  rename(total = n) %>%
-  #Join the previously built drug speeches member frequency dataset
-  left_join(cr_memcount_drug) %>%
-  #Replace the value of "drugs" for any member where no drug speeches detected to a zero
-  mutate(drugs = ifelse(is.na(drugs), 0, drugs)) %>%
-  #Find the proportion of total speeches from each member that were speeches about drugs
-  mutate(prop = drugs / total) %>%
-  arrange(desc(prop))
-
-#Join frequency dataset to full key of identifiers and member metadata
-key <- read_csv("key_CR.csv") %>%
-  mutate(speakerid = as.character(speakerid))
-cr_memcount <- cr_memcount %>%
-  left_join(key, by = "govtrack_id") %>%
-  #Only include one count for each member (otherwise, the same count will be used for each member-session combination)
-  distinct(govtrack_id, .keep_all = TRUE)
-  
-write_rds(cr_memcount, "CR_frequency.rds")
+# #Similarly to the Congressional Drug Dataset Creation, this chunk is commented out because of the potential processing issues when working with the full floor speeches dataset (Gentzkow, Shapiro, and Taddy 2018; downloadable here https://data.stanford.edu/congress_text). Because the workflow associated with the full floor speeches dataset below does not require engaging with the text data, it does not demand as much computing power as the string detection workflow in the Congressional Drug Dataset Creation; therefore, this current chunk has a lower risk of system failure/crashing than the former. 
+# #Load in key that relates Congressional Record "speakerid" to their associated unique identifiers. 
+# #The creators of the original dataset (Gentzkow, Shapiro, and Taddy 2018) indexed their members using the dataset provided in "https://github.com/unitedstates/congress-legislators" by first name, last name, state, etc. This meant we were able to join the publicly available dataset of identifiers to our dataset easily for the vast majority of legislators; however, there were a number of father-son pairs that had both served in Congress during the period of interest from the same state with the same first and last name. These members had to be matched to their identifiers manually. If interested, the manually matched speakerids appear at the end of the dataset (after a row that contains "NA" for all columns).
+# #Many speeches were not attributed to a member of Congress in the original dataset. This was most frequently due to the speech originating from a clerk or other non-member speaking in Congress but may also be due to scraping error in the original dataset.
+# key <- read_csv("key_CR.csv") %>%
+#   mutate(speakerid = as.character(speakerid)) %>%
+#   #Select only connecting identifiers for the time being
+#   select(speakerid, govtrack_id)
+# 
+# #Load in the Congressional Record Drug Speeches dataset created above. 7339 speeches are included.
+# cr_drug <- read_rds("drug_record.rds")
+# #Join the Congressional Record Drug Speeches dataset with member identifiers and metadata
+# cr_drug <- cr_drug %>%
+#   left_join(key, by = "speakerid")
+# 
+# #Count the number of speeches from each member were included in the Drug Speeches dataset.
+# cr_memcount_drug <- cr_drug %>%
+#   count(govtrack_id) %>%
+#   #Name the tallying row "drugs"
+#   rename(drugs = n)
+# 
+# #Load in the full dataset of Congressional Record speeches
+# cr <- read_rds("all_record.rds") 
+# 
+# #Build a dataset that indicates the number of drug speeches as a share of total speeches in the original dataset
+# cr_memcount <- cr %>%
+#   left_join(key, by = "speakerid") %>%
+#   #Count the number of speeches from each member in the original Congressional Record speeches dataset
+#   count(govtrack_id) %>%
+#   #Name the tallying row "total"
+#   rename(total = n) %>%
+#   #Join the previously built drug speeches member frequency dataset
+#   left_join(cr_memcount_drug) %>%
+#   #Replace the value of "drugs" for any member where no drug speeches detected to a zero
+#   mutate(drugs = ifelse(is.na(drugs), 0, drugs)) %>%
+#   #Find the proportion of total speeches from each member that were speeches about drugs
+#   mutate(prop = drugs / total) %>%
+#   arrange(desc(prop))
+# 
+# #Join frequency dataset to full key of identifiers and member metadata
+# key <- read_csv("key_CR.csv") %>%
+#   mutate(speakerid = as.character(speakerid))
+# cr_memcount <- cr_memcount %>%
+#   left_join(key, by = "govtrack_id") %>%
+#   #Only include one count for each member (otherwise, the same count will be used for each member-session combination)
+#   distinct(govtrack_id, .keep_all = TRUE)
+#   
+# write_rds(cr_memcount, "CR_frequency.rds")
 
 ```
