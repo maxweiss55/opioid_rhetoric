@@ -1727,8 +1727,7 @@ opioid1 <- opioid %>%
   mutate(member = str_replace_all(member, "’", "'")) %>%
   left_join(legkey, by = "member")
 
-opioid1
-
+nrow(opioid1)
 
 df <- opioid1 %>%
   mutate(text = str_replace_all(text, "(?<=[:upper:])\\.", "")) %>%
