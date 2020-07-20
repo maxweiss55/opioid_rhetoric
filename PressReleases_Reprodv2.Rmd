@@ -786,7 +786,8 @@ if (length(cr_drug_confirm$confirmation[cr_drug_confirm$confirmation == FALSE]) 
   print("FALSE")
 } else {
   print("TRUE")
-}
+} 
+
 ```
 
 ```{r Congressional Record Drug Dataset Member Frequency Analysis}
